@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenShift workload resiliency — animated explainers</title>
+<meta name="description" content="Animated explainers for OpenShift workload resiliency: topology spread constraints, pod disruption budgets and graceful shutdown during a cluster upgrade.">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span>Workload resiliency <span class="brand-dim">— animated explainers</span></span>
+  </div>
+  <div class="topbar-actions">
+    <button id="btn-notes" class="icon-btn" aria-pressed="false" title="Speaker notes (n)">Notes</button>
+    <button id="btn-theme" class="icon-btn" title="Toggle light/dark (t)">Theme</button>
+    <button id="btn-present" class="icon-btn" title="Presentation mode (f)">Present</button>
+    <button id="btn-help" class="icon-btn" title="Keyboard shortcuts (?)">?</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <nav class="sidebar" aria-label="Animations">
+    <p class="sidebar-label">Animations</p>
+    <ul id="anim-list" class="anim-list"></ul>
+    <p class="sidebar-foot">
+      Deep-link any frame:<br>
+      <code>#id/mode/step</code>
+    </p>
+  </nav>
+
+  <main class="stage">
+    <div class="stage-head">
+      <h1 id="anim-title">Loading…</h1>
+      <p id="anim-summary" class="summary"></p>
+    </div>
+
+    <div id="mode-tabs" class="tabs" role="tablist" aria-label="Scenario"></div>
+    <p id="mode-caption" class="caption"></p>
+
+    <div id="viewport" class="viewport" aria-live="polite">
+      <svg id="canvas" viewBox="0 0 680 350" role="img" aria-labelledby="canvas-title canvas-desc">
+        <title id="canvas-title">Animation canvas</title>
+        <desc id="canvas-desc"></desc>
+        <g id="scene"></g>
+      </svg>
+    </div>
+
+    <div id="metrics" class="metrics"></div>
+
+    <div class="narration">
+      <p id="note" class="note"></p>
+      <p id="badge" class="badge"></p>
+    </div>
+
+    <div class="transport">
+      <button id="btn-play" class="play-btn" aria-label="Play or pause">▶</button>
+      <button id="btn-prev" class="icon-btn" aria-label="Previous step">←</button>
+      <button id="btn-next" class="icon-btn" aria-label="Next step">→</button>
+      <input id="scrub" type="range" min="0" max="1" step="1" value="0" aria-label="Scrub through steps">
+      <span id="counter" class="counter">1 / 1</span>
+      <label class="speed">
+        Speed
+        <select id="speed" aria-label="Playback speed">
+          <option value="1600">slow</option>
+          <option value="1000" selected>normal</option>
+          <option value="550">fast</option>
+        </select>
+      </label>
+    </div>
+  </main>
+
+  <aside id="notes-panel" class="notes-panel" hidden aria-label="Speaker notes">
+    <h2>Speaker notes</h2>
+    <div id="notes-body"></div>
+  </aside>
+
+</div>
+
+<div id="help" class="help-overlay" hidden role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+  <div class="help-card">
+    <h2>Keyboard</h2>
+    <dl>
+      <dt>Space</dt><dd>play / pause</dd>
+      <dt>← →</dt><dd>step back / forward</dd>
+      <dt>Home / End</dt><dd>first / last step</dd>
+      <dt>1 – 4</dt><dd>switch scenario</dd>
+      <dt>J / K</dt><dd>previous / next animation</dd>
+      <dt>N</dt><dd>speaker notes</dd>
+      <dt>T</dt><dd>light / dark</dd>
+      <dt>F</dt><dd>presentation mode</dd>
+      <dt>R</dt><dd>reset to first step</dd>
+      <dt>Esc</dt><dd>close / leave presentation</dd>
+    </dl>
+    <button id="help-close" class="icon-btn">Close</button>
+  </div>
+</div>
+
+<noscript>
+  <p style="padding:2rem">These explainers are rendered client-side and need JavaScript enabled.</p>
+</noscript>
+
+<script type="module" src="js/player.js"></script>
+</body>
+</html>

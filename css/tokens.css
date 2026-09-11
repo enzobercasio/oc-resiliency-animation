@@ -1,0 +1,62 @@
+/* Design tokens. Light and dark are declared here and nowhere else - every
+   other stylesheet and every animation module must reference these variables
+   rather than hardcoding a colour, or dark mode breaks. */
+:root {
+  --surface-0: #faf9f7;
+  --surface-1: #ffffff;
+  --surface-2: #f3f1ec;
+  --text-primary: #1f1f1d;
+  --text-secondary: #5f5e5a;
+  --text-muted: #8a8880;
+  --border: #e2dfd8;
+  --border-strong: #c9c5bb;
+  --accent: #185fa5;
+  --accent-bg: #e6f1fb;
+
+  /* semantic state colours used by metrics and status text */
+  --ok-text: #0f6e56;
+  --warn-text: #854f0b;
+  --bad-text: #a32d2d;
+
+  /* animation ramps: fill / stroke / text, one triple per state */
+  --run-fill: #e1f5ee;   --run-stroke: #0f6e56;  --run-text: #04342c;
+  --term-fill: #faeeda;  --term-stroke: #ba7517; --term-text: #412402;
+  --pend-fill: #f1efe8;  --pend-stroke: #5f5e5a; --pend-text: #2c2c2a;
+  --node-fill: #ffffff;  --node-stroke: #c9c5bb;
+  --cordon-stroke: #ba7517;
+  --reboot-stroke: #888780;
+  --track: #d3d1c7;
+
+  --radius: 8px;
+  --font-sans: "Red Hat Text", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Red Hat Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root[data-theme="dark"] {
+  --surface-0: #16161a;
+  --surface-1: #1e1e22;
+  --surface-2: #26262b;
+  --text-primary: #eceae4;
+  --text-secondary: #b4b2a9;
+  --text-muted: #888780;
+  --border: #33333a;
+  --border-strong: #4a4a52;
+  --accent: #85b7eb;
+  --accent-bg: #12243a;
+
+  --ok-text: #5dcaa5;
+  --warn-text: #fac775;
+  --bad-text: #f09595;
+
+  --run-fill: #085041;   --run-stroke: #5dcaa5;  --run-text: #e1f5ee;
+  --term-fill: #633806;  --term-stroke: #fac775; --term-text: #faeeda;
+  --pend-fill: #2c2c2a;  --pend-stroke: #b4b2a9; --pend-text: #f1efe8;
+  --node-fill: #1e1e22;  --node-stroke: #4a4a52;
+  --cordon-stroke: #efa127;
+  --reboot-stroke: #9c9a92;
+  --track: #4a4a52;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

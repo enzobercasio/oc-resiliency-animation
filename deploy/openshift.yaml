@@ -1,0 +1,96 @@
+# Host the showcase on OpenShift itself, which is a pleasant touch when the
+# audience is an OpenShift platform team.
+#
+#   oc new-project resiliency-showcase
+#   oc apply -f deploy/openshift.yaml
+#   oc start-build resiliency-showcase --from-dir=. --follow
+#   oc get route resiliency-showcase
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: resiliency-showcase
+  labels: {app: resiliency-showcase}
+spec:
+  lookupPolicy: {local: true}
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: resiliency-showcase
+  labels: {app: resiliency-showcase}
+spec:
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to: {kind: ImageStreamTag, name: 'resiliency-showcase:latest'}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resiliency-showcase
+  labels: {app: resiliency-showcase}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: resiliency-showcase}
+  template:
+    metadata:
+      labels: {app: resiliency-showcase}
+    spec:
+      # The showcase practices what it demonstrates - see deploy/pdb.yaml.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: resiliency-showcase}
+      containers:
+        - name: web
+          image: resiliency-showcase:latest
+          ports: [{containerPort: 8080}]
+          readinessProbe:
+            httpGet: {path: /index.html, port: 8080}
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {cpu: 100m, memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities: {drop: ["ALL"]}
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: resiliency-showcase
+  labels: {app: resiliency-showcase}
+spec:
+  selector: {app: resiliency-showcase}
+  ports: [{name: http, port: 8080, targetPort: 8080}]
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: resiliency-showcase
+  labels: {app: resiliency-showcase}
+spec:
+  to: {kind: Service, name: resiliency-showcase}
+  port: {targetPort: http}
+  tls: {termination: edge, insecureEdgeTerminationPolicy: Redirect}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: resiliency-showcase
+  labels: {app: resiliency-showcase}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {app: resiliency-showcase}
