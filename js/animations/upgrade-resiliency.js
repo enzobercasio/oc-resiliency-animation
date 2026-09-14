@@ -54,11 +54,12 @@ function buildFrames(modeId) {
     id: `p${i + 1}`,
   }));
 
-  const push = (note, badge) => frames.push({
+  const push = (note, badge, focus) => frames.push({
     nodes: [...nodes],
     pods: pods.map((p) => ({ ...p })),
     note,
     badge,
+    focus,
   });
 
   // Where does a replacement pod go? With spread: the emptiest eligible zone.
@@ -83,6 +84,7 @@ function buildFrames(modeId) {
            : 'Steady state: all 6 replicas packed onto one node',
     spread ? 'The spread constraint balances the deployment across failure domains'
            : 'Nothing tells the scheduler to spread, so it bin-packed into a single node',
+    spread ? ['topologyKey', 'maxSkew'] : ['no topologySpreadConstraints', 'bin-pack'],
   );
 
   for (let k = 0; k < 3; k += 1) {
@@ -106,6 +108,7 @@ function buildFrames(modeId) {
           push(
             `Evicting ${pods[i].id} — one replica at a time`,
             'PDB minAvailable: 5 caps the drain at a single pod; the next eviction has to wait',
+            ['minAvailable', 'kind: PodDisruptionBudget'],
           );
           const t = pickTarget(k);
           counter += 1;
@@ -113,6 +116,8 @@ function buildFrames(modeId) {
           push(
             `${pods[i].id} comes up in zone ${ZONES[t]} and passes readiness`,
             'Back to 6 of 6, so disruptionsAllowed returns to 1 and the drain continues',
+            spread ? ['topologyKey', 'whenUnsatisfiable']
+                   : ['no topologySpreadConstraints', 'bin-pack'],
           );
         });
       } else {
@@ -120,6 +125,7 @@ function buildFrames(modeId) {
         push(
           `The drain evicts all ${here} replicas on this node at once`,
           'No PodDisruptionBudget, so nothing caps how many go down together',
+          ['no PodDisruptionBudget', 'may evict every replica'],
         );
         idxs.forEach((i) => {
           const t = pickTarget(k);
@@ -226,6 +232,194 @@ const NOTES = {
   ],
 };
 
+const YAML = {
+  "d-full": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\nspec:\n  replicas: 6\n  template:\n    spec:\n      priorityClassName: platform-critical\n      terminationGracePeriodSeconds: 45\n      topologySpreadConstraints:\n        - maxSkew: 1\n          topologyKey: topology.kubernetes.io/zone\n          whenUnsatisfiable: DoNotSchedule\n          labelSelector:\n            matchLabels:\n              app: payments-api\n      # older equivalent: affinity.podAntiAffinity with\n      # topologyKey kubernetes.io/hostname - but that\n      # caps replicas at your node count\n      containers:\n        - name: api\n          image: ubi9/httpd-24:latest\n          resources:\n            requests:\n              cpu: 100m\n              memory: 256Mi\n          lifecycle:\n            preStop:\n              exec:\n                command: [\"/bin/sh\", \"-c\", \"sleep 15\"]\n---\napiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: payments-api-pdb\nspec:\n  minAvailable: 5\n  # with an HPA moving replicas, prefer a percentage:\n  #   maxUnavailable: 20%\n  unhealthyPodEvictionPolicy: AlwaysAllow\n  selector:\n    matchLabels:\n      app: payments-api\n",
+  "b-spread-only": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\nspec:\n  replicas: 6\n  template:\n    spec:\n      priorityClassName: platform-critical\n      terminationGracePeriodSeconds: 45\n      topologySpreadConstraints:\n        - maxSkew: 1\n          topologyKey: topology.kubernetes.io/zone\n          whenUnsatisfiable: DoNotSchedule\n          labelSelector:\n            matchLabels:\n              app: payments-api\n      # older equivalent: affinity.podAntiAffinity with\n      # topologyKey kubernetes.io/hostname - but that\n      # caps replicas at your node count\n      containers:\n        - name: api\n          image: ubi9/httpd-24:latest\n          resources:\n            requests:\n              cpu: 100m\n              memory: 256Mi\n          lifecycle:\n            preStop:\n              exec:\n                command: [\"/bin/sh\", \"-c\", \"sleep 15\"]\n\n# no PodDisruptionBudget exists for this workload\n# a drain may evict every replica on a node at once\n",
+  "c-pdb-only": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\nspec:\n  replicas: 6\n  template:\n    spec:\n      priorityClassName: platform-critical\n      terminationGracePeriodSeconds: 45\n      # no topologySpreadConstraints\n      # scheduler may bin-pack all 6 onto one node\n      # (podAntiAffinity would have prevented this too)\n      containers:\n        - name: api\n          image: ubi9/httpd-24:latest\n          resources:\n            requests:\n              cpu: 100m\n              memory: 256Mi\n          lifecycle:\n            preStop:\n              exec:\n                command: [\"/bin/sh\", \"-c\", \"sleep 15\"]\n---\napiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: payments-api-pdb\nspec:\n  minAvailable: 5\n  # with an HPA moving replicas, prefer a percentage:\n  #   maxUnavailable: 20%\n  unhealthyPodEvictionPolicy: AlwaysAllow\n  selector:\n    matchLabels:\n      app: payments-api\n",
+  "a-none": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\nspec:\n  replicas: 6\n  template:\n    spec:\n      priorityClassName: platform-critical\n      terminationGracePeriodSeconds: 45\n      # no topologySpreadConstraints\n      # scheduler may bin-pack all 6 onto one node\n      # (podAntiAffinity would have prevented this too)\n      containers:\n        - name: api\n          image: ubi9/httpd-24:latest\n          resources:\n            requests:\n              cpu: 100m\n              memory: 256Mi\n          lifecycle:\n            preStop:\n              exec:\n                command: [\"/bin/sh\", \"-c\", \"sleep 15\"]\n\n# no PodDisruptionBudget exists for this workload\n# a drain may evict every replica on a node at once\n"
+};
+
+const FEATURES = {
+  "d-full": [
+    {
+      "name": "spec.replicas",
+      "kind": "Deployment",
+      "what": "How many pods the controller keeps running. Necessary, nowhere near sufficient - it says nothing about placement or eviction rate."
+    },
+    {
+      "name": "topologySpreadConstraints",
+      "kind": "pod spec",
+      "what": "Distributes pods evenly across a topology domain. DoNotSchedule enforces it; ScheduleAnyway is advisory and may be silently ignored under capacity pressure."
+    },
+    {
+      "name": "podAntiAffinity",
+      "kind": "affinity",
+      "what": "The older way to keep replicas apart. requiredDuringScheduling with topologyKey kubernetes.io/hostname enforces one pod per node, which caps replicas at your node count - prefer topology spread for new workloads."
+    },
+    {
+      "name": "PodDisruptionBudget",
+      "kind": "policy/v1",
+      "what": "Caps how many pods may be voluntarily evicted at once. An admission check on the eviction API, so it governs drains and upgrades and nothing else."
+    },
+    {
+      "name": "unhealthyPodEvictionPolicy",
+      "kind": "PDB field",
+      "what": "AlwaysAllow lets a CrashLoopBackOff replica be evicted instead of consuming the budget and blocking the drain. Requires OCP 4.14+."
+    },
+    {
+      "name": "HorizontalPodAutoscaler",
+      "kind": "autoscaling/v2",
+      "what": "Moves spec.replicas with load. Express the budget as maxUnavailable: 20% rather than minAvailable: 5, or it silently goes stale the moment the workload scales."
+    },
+    {
+      "name": "resources.requests",
+      "kind": "container",
+      "what": "What the scheduler reserves. A replacement pod only lands on a surviving node if its requests fit - on a tight cluster this is what turns a drain into a Pending pod."
+    },
+    {
+      "name": "PriorityClass",
+      "kind": "scheduling.k8s.io/v1",
+      "what": "Decides who gets rescheduled first when drained pods compete for the remaining nodes, and whose pods may be preempted to make room."
+    },
+    {
+      "name": "lifecycle.preStop",
+      "kind": "container",
+      "what": "Runs before SIGTERM so endpoint removal can propagate - the pod stops receiving traffic before it stops serving."
+    },
+    {
+      "name": "terminationGracePeriodSeconds",
+      "kind": "pod spec",
+      "what": "How long the kubelet waits after SIGTERM before SIGKILL. Must exceed preStop plus your p99 request duration."
+    },
+    {
+      "name": "oc adm drain",
+      "kind": "command",
+      "what": "What the Machine Config Operator performs on each node during an upgrade. Calls the eviction API per pod rather than deleting them."
+    }
+  ],
+  "b-spread-only": [
+    {
+      "name": "spec.replicas",
+      "kind": "Deployment",
+      "what": "How many pods the controller keeps running. Necessary, nowhere near sufficient - it says nothing about placement or eviction rate."
+    },
+    {
+      "name": "topologySpreadConstraints",
+      "kind": "pod spec",
+      "what": "Distributes pods evenly across a topology domain. DoNotSchedule enforces it; ScheduleAnyway is advisory and may be silently ignored under capacity pressure."
+    },
+    {
+      "name": "podAntiAffinity",
+      "kind": "affinity",
+      "what": "The older way to keep replicas apart. requiredDuringScheduling with topologyKey kubernetes.io/hostname enforces one pod per node, which caps replicas at your node count - prefer topology spread for new workloads."
+    },
+    {
+      "name": "resources.requests",
+      "kind": "container",
+      "what": "What the scheduler reserves. A replacement pod only lands on a surviving node if its requests fit - on a tight cluster this is what turns a drain into a Pending pod."
+    },
+    {
+      "name": "PriorityClass",
+      "kind": "scheduling.k8s.io/v1",
+      "what": "Decides who gets rescheduled first when drained pods compete for the remaining nodes, and whose pods may be preempted to make room."
+    },
+    {
+      "name": "lifecycle.preStop",
+      "kind": "container",
+      "what": "Runs before SIGTERM so endpoint removal can propagate - the pod stops receiving traffic before it stops serving."
+    },
+    {
+      "name": "terminationGracePeriodSeconds",
+      "kind": "pod spec",
+      "what": "How long the kubelet waits after SIGTERM before SIGKILL. Must exceed preStop plus your p99 request duration."
+    },
+    {
+      "name": "oc adm drain",
+      "kind": "command",
+      "what": "What the Machine Config Operator performs on each node during an upgrade. Calls the eviction API per pod rather than deleting them."
+    }
+  ],
+  "c-pdb-only": [
+    {
+      "name": "spec.replicas",
+      "kind": "Deployment",
+      "what": "How many pods the controller keeps running. Necessary, nowhere near sufficient - it says nothing about placement or eviction rate."
+    },
+    {
+      "name": "PodDisruptionBudget",
+      "kind": "policy/v1",
+      "what": "Caps how many pods may be voluntarily evicted at once. An admission check on the eviction API, so it governs drains and upgrades and nothing else."
+    },
+    {
+      "name": "unhealthyPodEvictionPolicy",
+      "kind": "PDB field",
+      "what": "AlwaysAllow lets a CrashLoopBackOff replica be evicted instead of consuming the budget and blocking the drain. Requires OCP 4.14+."
+    },
+    {
+      "name": "HorizontalPodAutoscaler",
+      "kind": "autoscaling/v2",
+      "what": "Moves spec.replicas with load. Express the budget as maxUnavailable: 20% rather than minAvailable: 5, or it silently goes stale the moment the workload scales."
+    },
+    {
+      "name": "resources.requests",
+      "kind": "container",
+      "what": "What the scheduler reserves. A replacement pod only lands on a surviving node if its requests fit - on a tight cluster this is what turns a drain into a Pending pod."
+    },
+    {
+      "name": "PriorityClass",
+      "kind": "scheduling.k8s.io/v1",
+      "what": "Decides who gets rescheduled first when drained pods compete for the remaining nodes, and whose pods may be preempted to make room."
+    },
+    {
+      "name": "lifecycle.preStop",
+      "kind": "container",
+      "what": "Runs before SIGTERM so endpoint removal can propagate - the pod stops receiving traffic before it stops serving."
+    },
+    {
+      "name": "terminationGracePeriodSeconds",
+      "kind": "pod spec",
+      "what": "How long the kubelet waits after SIGTERM before SIGKILL. Must exceed preStop plus your p99 request duration."
+    },
+    {
+      "name": "oc adm drain",
+      "kind": "command",
+      "what": "What the Machine Config Operator performs on each node during an upgrade. Calls the eviction API per pod rather than deleting them."
+    }
+  ],
+  "a-none": [
+    {
+      "name": "spec.replicas",
+      "kind": "Deployment",
+      "what": "How many pods the controller keeps running. Necessary, nowhere near sufficient - it says nothing about placement or eviction rate."
+    },
+    {
+      "name": "resources.requests",
+      "kind": "container",
+      "what": "What the scheduler reserves. A replacement pod only lands on a surviving node if its requests fit - on a tight cluster this is what turns a drain into a Pending pod."
+    },
+    {
+      "name": "PriorityClass",
+      "kind": "scheduling.k8s.io/v1",
+      "what": "Decides who gets rescheduled first when drained pods compete for the remaining nodes, and whose pods may be preempted to make room."
+    },
+    {
+      "name": "lifecycle.preStop",
+      "kind": "container",
+      "what": "Runs before SIGTERM so endpoint removal can propagate - the pod stops receiving traffic before it stops serving."
+    },
+    {
+      "name": "terminationGracePeriodSeconds",
+      "kind": "pod spec",
+      "what": "How long the kubelet waits after SIGTERM before SIGKILL. Must exceed preStop plus your p99 request duration."
+    },
+    {
+      "name": "oc adm drain",
+      "kind": "command",
+      "what": "What the Machine Config Operator performs on each node during an upgrade. Calls the eviction API per pod rather than deleting them."
+    }
+  ]
+};
+
 export default {
   id: 'upgrade-resiliency',
   title: 'Rolling upgrade: four configurations',
@@ -237,4 +431,6 @@ export default {
   renderSVG,
   metrics,
   speakerNotes: (modeId) => NOTES[modeId],
+  yaml: (modeId) => YAML[modeId],
+  features: (modeId) => FEATURES[modeId],
 };

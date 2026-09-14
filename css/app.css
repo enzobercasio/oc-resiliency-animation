@@ -1,5 +1,12 @@
 * { box-sizing: border-box; }
 
+/* Any author-level `display` declaration beats the user-agent's
+   `[hidden] { display: none }` rule. Several elements here are toggled from JS
+   via the hidden attribute AND carry a display rule (.help-overlay, .tabs), so
+   without this guard they stay visible: the shortcuts overlay renders on page
+   load and its close button appears to do nothing. Keep this rule. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -68,7 +75,7 @@ body {
 }
 .anim-list .num { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-right: 7px; }
 
-.stage { padding: 24px 28px 56px; max-width: 860px; }
+.stage { padding: 24px 28px 56px; max-width: 960px; }
 .stage-head h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
 .summary { color: var(--text-secondary); font-size: 15px; margin: 0 0 18px; max-width: 60ch; }
 
@@ -100,6 +107,7 @@ body {
 .node-rect { fill: var(--node-fill); stroke: var(--node-stroke); stroke-width: 1; }
 .node-rect.cordoned { stroke: var(--cordon-stroke); stroke-dasharray: 6 4; }
 .node-rect.rebooting { stroke: var(--reboot-stroke); stroke-dasharray: 6 4; }
+.node-rect.failed { stroke: var(--term-stroke); stroke-dasharray: 3 3; }
 
 .pod rect { stroke-width: 1; }
 .pod.run  rect { fill: var(--run-fill);  stroke: var(--run-stroke); }
@@ -148,6 +156,58 @@ body {
   border: 1px solid var(--border-strong); border-radius: 6px;
 }
 
+/* ---------- config column ---------- */
+/* The manifest and the feature outline sit side by side so both are readable
+   without scrolling. The manifest gets the wider column - its longest lines are
+   ~48 monospace characters and horizontal scrolling in a live session is worse
+   than a slightly cramped prose column. */
+.config-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin-top: 20px;
+}
+.config-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.panel-head h2 {
+  font-size: 12px; font-weight: 500; margin: 0;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted);
+}
+.icon-btn.tiny { font-size: 11px; padding: 3px 8px; }
+
+.config-panel { align-self: stretch; }
+
+pre.yaml {
+  font-family: var(--font-mono);
+  font-size: 11.5px; line-height: 1.6;
+  margin: 0; white-space: pre; overflow-x: auto;
+  color: var(--text-primary);
+}
+.yl { display: block; padding: 0 5px; border-radius: 3px; transition: background 200ms ease; }
+.yl.hl { background: var(--accent-bg); }
+.yk { color: var(--accent); }
+.yc { color: var(--text-muted); }
+.ym { color: var(--warn-text); }
+
+.features { margin: 0; font-size: 13px; }
+.features dt {
+  font-family: var(--font-mono); font-size: 11.5px;
+  color: var(--text-primary); margin-top: 10px;
+}
+.features dt:first-child { margin-top: 0; }
+.features dt .kind {
+  font-family: var(--font-sans); font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted); margin-left: 6px;
+}
+.features dd { margin: 2px 0 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.5; }
+
 /* ---------- notes ---------- */
 .notes-panel {
   position: fixed; right: 0; top: 53px; bottom: 0; width: 340px;
@@ -191,6 +251,10 @@ body.presenting .badge { font-size: 17px; }
 body.presenting .metric .m-value { font-size: 26px; }
 body.presenting .viewport { border: none; background: transparent; }
 body.presenting .notes-panel { top: 0; }
+
+@media (max-width: 720px) {
+  .config-col { grid-template-columns: minmax(0, 1fr); }
+}
 
 @media (max-width: 860px) {
   .layout { grid-template-columns: minmax(0, 1fr); }

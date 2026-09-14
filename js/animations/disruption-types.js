@@ -28,10 +28,12 @@ function buildFrames(modeId) {
     push({ actor: 'idle', arrow: false, checked: false, verdict: '',
       pods: [...allReady],
       note: 'Six replicas running, PDB minAvailable: 5 in force',
+      focus: ['minAvailable'],
       badge: 'disruptionsAllowed is 1 — the budget has exactly one pod of headroom' });
     push({ actor: 'drain', arrow: true, checked: false, verdict: '',
       pods: [...allReady],
       note: 'An administrator runs oc adm drain',
+      focus: ['POST /api/v1', 'eviction subresource', 'The drain calls'],
       badge: 'The drain does not delete pods. It calls POST /pods/{name}/eviction for each one' });
     push({ actor: 'drain', arrow: true, checked: true, verdict: 'allowed',
       pods: [...allReady],
@@ -44,6 +46,7 @@ function buildFrames(modeId) {
     push({ actor: 'drain', arrow: true, checked: true, verdict: 'denied',
       pods: ['t', 'r', 'r', 'r', 'r', 'r'],
       note: 'The drain immediately requests the next eviction — and is refused',
+      focus: ['429', 'budget spent'],
       badge: 'HTTP 429 Too Many Requests. The drain retries in a loop rather than proceeding' });
     push({ actor: 'drain', arrow: true, checked: true, verdict: 'allowed',
       pods: ['r', 'r', 'r', 'r', 'r', 'r'],
@@ -61,10 +64,12 @@ function buildFrames(modeId) {
     push({ actor: 'failure', arrow: false, checked: false, verdict: '',
       pods: [...allReady],
       note: 'A node loses power',
+      focus: ['not on this code path', 'no API call at all', 'no eviction to admit'],
       badge: 'No API call is made. No controller is asked for permission. There is nothing to refuse' });
     push({ actor: 'failure', arrow: false, checked: false, verdict: 'bypassed',
       pods: ['x', 'x', 'x', 'r', 'r', 'r'],
       note: 'Every pod on that node is gone at once',
+      focus: ['placement, not the budget'],
       badge: 'The PDB was in force the entire time and had no mechanism to intervene' });
     push({ actor: 'failure', arrow: false, checked: false, verdict: 'bypassed',
       pods: ['p', 'p', 'p', 'r', 'r', 'r'],
@@ -146,6 +151,63 @@ const NOTES = {
   ],
 };
 
+const YAML = {
+  "voluntary": "apiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: payments-api-pdb\nspec:\n  minAvailable: 5\n  unhealthyPodEvictionPolicy: AlwaysAllow\n  selector:\n    matchLabels:\n      app: payments-api\n\n# The drain calls the eviction subresource.\n# It is admission-checked:\n#   POST /api/v1/namespaces/NS/pods/POD/eviction\n#   -> 201 Created        eviction allowed\n#   -> 429 Too Many Reqs  budget spent, drain retries\n#\n# oc get pdb -A -o custom-columns=\\\n#   NAME:.metadata.name,\n#   ALLOWED:.status.disruptionsAllowed\n",
+  "involuntary": "apiVersion: policy/v1\nkind: PodDisruptionBudget\nmetadata:\n  name: payments-api-pdb\nspec:\n  minAvailable: 5\n  unhealthyPodEvictionPolicy: AlwaysAllow\n  selector:\n    matchLabels:\n      app: payments-api\n\n# Identical manifest. It is simply not on this code path:\n#   a node losing power makes no API call at all,\n#   so there is no eviction to admit or refuse.\n#\n# What decides the outcome here is placement, not the budget.\n"
+};
+
+const FEATURES = {
+  "voluntary": [
+    {
+      "name": "oc adm drain",
+      "kind": "command",
+      "what": "Cordons then evicts. It never deletes pods directly, which is exactly why the budget applies to it."
+    },
+    {
+      "name": "Eviction API",
+      "kind": "pods/eviction",
+      "what": "The subresource a drain calls per pod. The API server asks every matching PDB for permission and returns 429 when the budget is exhausted."
+    },
+    {
+      "name": "PodDisruptionBudget",
+      "kind": "policy/v1",
+      "what": "Caps concurrent voluntary evictions. Use maxUnavailable as a percentage for HPA-managed workloads so the budget scales with the replica count."
+    },
+    {
+      "name": "status.disruptionsAllowed",
+      "kind": "PDB status",
+      "what": "Live headroom. Permanently 0 means every drain blocks and your next MachineConfigPool stalls \u2014 check this before any upgrade window."
+    },
+    {
+      "name": "unhealthyPodEvictionPolicy",
+      "kind": "PDB field",
+      "what": "AlwaysAllow stops a CrashLoopBackOff replica consuming the budget. Without it, a broken application can block a cluster upgrade."
+    }
+  ],
+  "involuntary": [
+    {
+      "name": "PodDisruptionBudget",
+      "kind": "policy/v1",
+      "what": "Caps concurrent voluntary evictions. Use maxUnavailable as a percentage for HPA-managed workloads so the budget scales with the replica count."
+    },
+    {
+      "name": "Eviction API",
+      "kind": "pods/eviction",
+      "what": "The subresource a drain calls per pod. The API server asks every matching PDB for permission and returns 429 when the budget is exhausted."
+    },
+    {
+      "name": "oc delete pod",
+      "kind": "command",
+      "what": "Bypasses the eviction API entirely, so no PDB applies. This is how you demonstrate an involuntary disruption on a live cluster."
+    },
+    {
+      "name": "topologySpreadConstraints",
+      "kind": "pod spec",
+      "what": "The feature that actually governs this scenario: it decides how much of the workload a single node or zone can take with it."
+    }
+  ]
+};
+
 export default {
   id: 'disruption-types',
   title: 'Voluntary vs involuntary disruption',
@@ -157,4 +219,6 @@ export default {
   renderSVG,
   metrics,
   speakerNotes: (modeId) => NOTES[modeId],
+  yaml: (modeId) => YAML[modeId],
+  features: (modeId) => FEATURES[modeId],
 };

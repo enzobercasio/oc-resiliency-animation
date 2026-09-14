@@ -23,6 +23,8 @@ export default {
   description: '…',            // screen-reader <desc> for the canvas
   metrics(frame, history) -> Metric[],
   speakerNotes(modeId) -> NoteBlock[],
+  yaml(modeId) -> string,              // manifest shown in the config column
+  features(modeId) -> Feature[],       // feature outline under the manifest
 };
 ```
 
@@ -122,6 +124,80 @@ stepping rather than playing.
 
 ---
 
+## The config column
+
+Two optional fields drive the pair of panels beneath the transport.
+
+`yaml(modeId)` returns the manifest for that mode as a plain string. Show only
+the fields the animation is about — a full production Deployment buries the point
+under image pull policies. **Keep every line to 64 characters or fewer**: the
+manifest shares the stage width with the feature outline, and a longer line
+scrolls horizontally, which is bad in a live session. `check-animations.mjs`
+fails the build on any line over budget. Use comments to make absence visible, because a
+missing PDB is exactly what a partial configuration is trying to convey:
+
+```yaml
+      # no topologySpreadConstraints
+      # the scheduler is free to bin-pack every replica onto one node
+```
+
+`features(modeId)` returns the outline rendered underneath:
+
+```js
+{ name: 'topologySpreadConstraints', kind: 'pod spec',
+  what: 'One or two sentences on what it does and where it bites.' }
+```
+
+`kind` is the API group, resource or field path — whatever tells a reader where
+the thing lives. Order features in the order the animation touches them.
+
+### Highlighting lines as frames advance
+
+Any frame may carry `focus`, an array of substrings. Manifest lines containing
+any of them are highlighted while that frame is showing:
+
+```js
+push('Evicting one replica at a time', 'The budget allows exactly one',
+     ['minAvailable', 'kind: PodDisruptionBudget']);
+```
+
+Two rules, both enforced by `tools/check-animations.mjs`:
+
+- **Every focus string must match a line in that mode's manifest.** A string that
+  matches nothing is a highlight that silently does nothing. This is easy to get
+  wrong when modes share frame-building code but have different manifests — the
+  `focus` then has to be conditional on the mode, exactly as the replacement-pod
+  frame in `upgrade-resiliency` is.
+- **At least one frame per mode should highlight something**, or the panel is
+  just decoration sitting next to the animation.
+
+---
+
+## Showing and hiding elements
+
+If you add UI that JS toggles with the `hidden` attribute, know this: `[hidden] {
+display: none }` lives in the **user-agent** stylesheet, and any author-origin
+`display` declaration beats it regardless of specificity. An element with
+`display: flex` in `css/app.css` will therefore ignore `hidden` entirely — it
+renders on page load and its close button appears to do nothing.
+
+`css/app.css` carries a global guard for exactly this:
+
+```css
+[hidden] { display: none !important; }
+```
+
+Do not remove it, and do not work around a stuck overlay by adding
+`style="display:none"` from JS — that diverges from the attribute the rest of the
+code reads. `tools/check-hidden-toggles.mjs` fails the build if the guard goes
+missing while anything still depends on it.
+
+A note on testing this: jsdom does **not** model the UA-vs-author cascade
+faithfully and reports these elements as correctly hidden either way, so a jsdom
+test here gives false confidence. The static check is the reliable one.
+
+---
+
 ## Worked example
 
 A minimal two-frame animation:
@@ -175,8 +251,12 @@ order when presenting. Put the anchor animation first.
 node --check js/animations/your-file.js   # syntax
 node tools/check-animations.mjs           # every frame of every mode builds and renders
 node tools/check-bounds.mjs               # geometry inside the viewBox
+node tools/check-hidden-toggles.mjs       # the [hidden] cascade guard is intact
+node tools/check-links.mjs                # deep links in the docs still resolve
 ./scripts/serve.sh                        # then check it in BOTH themes (press T)
 ```
+
+All five tools are dependency-free and safe to wire into CI.
 
 The theme check is not optional. Dark mode is where hardcoded colours surface,
 and it is the mode most people present in.

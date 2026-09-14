@@ -73,6 +73,22 @@
         </select>
       </label>
     </div>
+
+    <aside class="config-col" aria-label="Configuration and features">
+      <section class="config-panel" id="yaml-panel">
+        <div class="panel-head">
+          <h2>How it's configured</h2>
+          <button id="yaml-copy" class="icon-btn tiny" title="Copy this manifest">Copy</button>
+        </div>
+        <pre class="yaml"><code id="yaml-code"></code></pre>
+      </section>
+
+      <section class="config-panel" id="features-panel">
+        <div class="panel-head"><h2>Features in play</h2></div>
+        <dl id="features-list" class="features"></dl>
+      </section>
+    </aside>
+
   </main>
 
   <aside id="notes-panel" class="notes-panel" hidden aria-label="Speaker notes">

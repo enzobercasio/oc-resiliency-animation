@@ -16,6 +16,7 @@ const state = {
   i: 0,              // current frame index
   timer: null,       // interval handle when playing
   speed: 1000,       // ms per frame
+  yamlRaw: '',       // active manifest, for the copy button
 };
 
 /* ------------------------------------------------------------------ */
@@ -82,6 +83,7 @@ function selectMode(modeId, step) {
   });
   const mode = state.anim.modes.find((m) => m.id === modeId);
   el('mode-caption').textContent = mode.caption || '';
+  renderConfig(modeId);
 
   el('scrub').max = String(Math.max(0, state.frames.length - 1));
   renderNotes();
@@ -110,6 +112,7 @@ function render() {
                  <div class="m-value ${m.tone || ''}">${esc(m.value)}</div></div>`)
     .join('');
 
+  applyFocus(frame);
   el('note').textContent = frame.note || '';
   el('badge').textContent = frame.badge || '';
   el('scrub').value = String(state.i);
@@ -128,6 +131,79 @@ function renderNotes() {
     ? n.map((b) => (b.ask ? `<p class="ask">${esc(b.ask)}</p>`
                           : `${b.heading ? `<h3>${esc(b.heading)}</h3>` : ''}<p>${esc(b.text || '')}</p>`)).join('')
     : '<p>No notes for this animation.</p>';
+}
+
+/* ------------------------------------------------------------------ */
+/* Config column: manifest + feature outline                           */
+/* ------------------------------------------------------------------ */
+
+/* The manifest is fixed for a mode, so it is painted once on mode change.
+   Only the per-line highlight changes as frames advance. */
+function renderConfig(modeId) {
+  const yamlPanel = el('yaml-panel');
+  const featPanel = el('features-panel');
+
+  const yaml = state.anim.yaml ? state.anim.yaml(modeId) : null;
+  yamlPanel.hidden = !yaml;
+  if (yaml) {
+    state.yamlRaw = yaml.trim();
+    el('yaml-code').innerHTML = state.yamlRaw.split('\n').map(highlightLine).join('');
+  }
+
+  const features = state.anim.features ? state.anim.features(modeId) : null;
+  featPanel.hidden = !features || !features.length;
+  if (features && features.length) {
+    el('features-list').innerHTML = features.map((f) =>
+      `<dt>${esc(f.name)}${f.kind ? `<span class="kind">${esc(f.kind)}</span>` : ''}</dt>`
+      + `<dd>${esc(f.what)}</dd>`).join('');
+  }
+}
+
+/* Deliberately minimal: comments muted, keys accented, list markers marked.
+   This is a readability aid, not a YAML parser - anything it cannot classify
+   is left as plain text rather than guessed at. */
+function highlightLine(line) {
+  const raw = esc(line);
+  let html;
+
+  const commentOnly = line.match(/^(\s*)(#.*)$/);
+  const keyValue = line.match(/^(\s*-?\s*)([\w.\/-]+)(:)(.*)$/);
+
+  if (commentOnly) {
+    html = `${esc(commentOnly[1])}<span class="yc">${esc(commentOnly[2])}</span>`;
+  } else if (keyValue) {
+    const [, indent, key, colon, rest] = keyValue;
+    const trailing = rest.match(/^(.*?)(\s+#.*)$/);
+    const value = trailing ? trailing[1] : rest;
+    const comment = trailing ? `<span class="yc">${esc(trailing[2])}</span>` : '';
+    const marker = indent.includes('-') ? `<span class="ym">${esc(indent)}</span>` : esc(indent);
+    html = `${marker}<span class="yk">${esc(key)}</span>${colon}${esc(value)}${comment}`;
+  } else {
+    html = raw;
+  }
+
+  return `<span class="yl" data-src="${esc(line)}">${html || '&nbsp;'}</span>`;
+}
+
+/* A frame may name the manifest lines it is currently about, as an array of
+   substrings on frame.focus. Matching lines light up. */
+function applyFocus(frame) {
+  const focus = frame.focus || [];
+  document.querySelectorAll('#yaml-code .yl').forEach((lineEl) => {
+    const src = lineEl.dataset.src || '';
+    lineEl.classList.toggle('hl', focus.some((f) => src.includes(f)));
+  });
+}
+
+async function copyYaml() {
+  const btn = el('yaml-copy');
+  try {
+    await navigator.clipboard.writeText(state.yamlRaw || '');
+    btn.textContent = 'Copied';
+  } catch (e) {
+    btn.textContent = 'Select it';   // clipboard API needs a secure context
+  }
+  setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
 }
 
 /* ------------------------------------------------------------------ */
@@ -220,6 +296,7 @@ function wire() {
     state.speed = parseInt(e.target.value, 10);
     if (state.timer) { stop(); play(); }
   };
+  el('yaml-copy').onclick = copyYaml;
   el('btn-theme').onclick = toggleTheme;
   el('btn-notes').onclick = () => toggleNotes();
   el('btn-present').onclick = () => togglePresent();

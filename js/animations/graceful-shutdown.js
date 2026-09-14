@@ -27,8 +27,8 @@ const xOf = (t) => X0 + (t / SPAN) * W;
 function buildFrames(modeId) {
   const mode = MODES.find((m) => m.id === modeId) || MODES[0];
   const f = [];
-  const push = (t, router, container, failing, note, badge) =>
-    f.push({ t, router, container, failing, note, badge });
+  const push = (t, router, container, failing, note, badge, focus) =>
+    f.push({ t, router, container, failing, note, badge, focus });
 
   if (mode.preStop) {
     push(0, 'routing', 'serving', false,
@@ -36,7 +36,8 @@ function buildFrames(modeId) {
       'The kubelet begins termination and the endpoints controller begins removing this pod from the Service');
     push(1, 'removing', 'prestop', false,
       'preStop runs first — the container has NOT been signalled yet',
-      'This is the whole trick: preStop executes before SIGTERM, buying time for endpoint removal to propagate');
+      'This is the whole trick: preStop executes before SIGTERM, buying time for endpoint removal to propagate',
+      ['preStop', 'command:', 'exec:']);
     push(6, 'removing', 'prestop', false,
       'Endpoint removal propagating to the router',
       'Still serving in-flight requests normally; the sleep is doing nothing except waiting');
@@ -48,7 +49,8 @@ function buildFrames(modeId) {
       'The application starts its own shutdown with no traffic pointed at it');
     push(22, 'removed', 'sigterm', false,
       'Application drains its remaining in-flight requests',
-      'terminationGracePeriodSeconds 45 leaves ample room — the app exits well before the deadline');
+      'terminationGracePeriodSeconds 45 leaves ample room — the app exits well before the deadline',
+      ['terminationGracePeriodSeconds', 'sizing rule', 'grace >=', '45s']);
     push(28, 'removed', 'gone', false,
       'Container exits cleanly, pod removed',
       'Zero failed requests. Replica count never mattered here — this is purely about ordering');
@@ -58,13 +60,15 @@ function buildFrames(modeId) {
       'Identical starting point. The difference is what happens in the next second');
     push(1, 'routing', 'sigterm', true,
       'SIGTERM fires immediately — but the router still has this pod',
-      'The application begins refusing or dropping connections while traffic is still being sent to it');
+      'The application begins refusing or dropping connections while traffic is still being sent to it',
+      ['no lifecycle.preStop', 'SIGTERM fires the instant']);
     push(4, 'removing', 'sigterm', true,
       'Users are seeing 502s',
       'Replica count is still 6 of 6. Every dashboard says healthy. The failures are real');
     push(9, 'removing', 'gone', true,
       'Container has already exited; endpoint removal is still in flight',
-      'This gap is asynchronous and takes seconds — it is the entire failure window');
+      'This gap is asynchronous and takes seconds — it is the entire failure window',
+      ['PID 1 is a shell', 'oc exec POD']);
     push(13, 'removed', 'gone', false,
       'Router finally drops the pod from its pool',
       'Errors stop. The window was roughly ten seconds, per pod, per drain');
@@ -141,6 +145,88 @@ const NOTES = {
   ],
 };
 
+const YAML = {
+  "with-prestop": "apiVersion: apps/v1\nkind: Deployment\nspec:\n  template:\n    spec:\n      terminationGracePeriodSeconds: 45\n      containers:\n        - name: api\n          lifecycle:\n            preStop:\n              exec:\n                command: [\"/bin/sh\", \"-c\", \"sleep 15\"]\n          startupProbe:            # slow starts live here\n            httpGet:\n              path: /livez\n              port: 8080\n            failureThreshold: 30   # up to 150s to boot\n            periodSeconds: 5\n          readinessProbe:          # gates traffic\n            httpGet:\n              path: /readyz\n              port: 8080\n            periodSeconds: 5\n          livenessProbe:           # gates restarts\n            httpGet:\n              path: /livez\n              port: 8080\n            periodSeconds: 10\n\n# sizing rule:\n#   grace >= preStop + p99 request duration + margin\n#   45s   >= 15s     + ~20s                 + 10s\n",
+  "no-prestop": "apiVersion: apps/v1\nkind: Deployment\nspec:\n  template:\n    spec:\n      terminationGracePeriodSeconds: 30\n      containers:\n        - name: api\n          # no lifecycle.preStop\n          # SIGTERM fires the instant the pod is deleted,\n          # while the router still has it in its pool\n          readinessProbe:\n            httpGet:\n              path: /readyz\n              port: 8080\n            periodSeconds: 5\n          livenessProbe:\n            httpGet:\n              path: /livez\n              port: 8080\n            periodSeconds: 10\n          # no startupProbe: a slow boot trips liveness\n          # and the pod restarts before it ever serves\n\n# also check whether PID 1 is a shell eating SIGTERM:\n#   oc exec POD -- ps -p 1 -o comm=\n"
+};
+
+const FEATURES = {
+  "with-prestop": [
+    {
+      "name": "lifecycle.preStop",
+      "kind": "container",
+      "what": "Runs before SIGTERM is delivered. A sleep here buys time for endpoint removal to reach the router, so the pod stops receiving traffic before it stops serving."
+    },
+    {
+      "name": "terminationGracePeriodSeconds",
+      "kind": "pod spec",
+      "what": "Total time from termination start to SIGKILL. preStop counts against it, not in addition. Too long and every drain slows; too short and in-flight requests are cut."
+    },
+    {
+      "name": "startupProbe",
+      "kind": "container",
+      "what": "Holds liveness and readiness off until a slow-booting app is up. Use this rather than a large initialDelaySeconds on liveness, which weakens the probe forever rather than just at boot."
+    },
+    {
+      "name": "readinessProbe",
+      "kind": "container",
+      "what": "Gates traffic. Must not check downstream dependencies - a probe that fails on a slow database takes every replica out at once and turns a degraded dependency into a total outage."
+    },
+    {
+      "name": "livenessProbe",
+      "kind": "container",
+      "what": "Gates restarts. Should be cheaper and more tolerant than readiness: an aggressive liveness probe under load restarts healthy pods and manufactures the outage it was meant to catch."
+    },
+    {
+      "name": "Endpoints / EndpointSlice",
+      "kind": "control plane",
+      "what": "Removing a terminating pod from the Service is asynchronous and takes seconds to reach the router. That delay is the failure window preStop exists to cover."
+    },
+    {
+      "name": "OpenShift router (HAProxy)",
+      "kind": "ingress",
+      "what": "Holds its own view of backends, reloaded on endpoint change. It is the component still sending traffic to a pod that has already begun shutting down."
+    }
+  ],
+  "no-prestop": [
+    {
+      "name": "terminationGracePeriodSeconds",
+      "kind": "pod spec",
+      "what": "Total time from termination start to SIGKILL. preStop counts against it, not in addition. Too long and every drain slows; too short and in-flight requests are cut."
+    },
+    {
+      "name": "Endpoints / EndpointSlice",
+      "kind": "control plane",
+      "what": "Removing a terminating pod from the Service is asynchronous and takes seconds to reach the router. That delay is the failure window preStop exists to cover."
+    },
+    {
+      "name": "OpenShift router (HAProxy)",
+      "kind": "ingress",
+      "what": "Holds its own view of backends, reloaded on endpoint change. It is the component still sending traffic to a pod that has already begun shutting down."
+    },
+    {
+      "name": "SIGTERM handling",
+      "kind": "application",
+      "what": "The app must catch SIGTERM and drain. If PID 1 is a shell it never receives the signal, waits out the full grace period and is then killed."
+    },
+    {
+      "name": "readinessProbe",
+      "kind": "container",
+      "what": "Gates traffic. Must not check downstream dependencies - a probe that fails on a slow database takes every replica out at once and turns a degraded dependency into a total outage."
+    },
+    {
+      "name": "livenessProbe",
+      "kind": "container",
+      "what": "Gates restarts. Should be cheaper and more tolerant than readiness: an aggressive liveness probe under load restarts healthy pods and manufactures the outage it was meant to catch."
+    },
+    {
+      "name": "startupProbe",
+      "kind": "container",
+      "what": "Holds liveness and readiness off until a slow-booting app is up. Use this rather than a large initialDelaySeconds on liveness, which weakens the probe forever rather than just at boot."
+    }
+  ]
+};
+
 export default {
   id: 'graceful-shutdown',
   title: 'Graceful shutdown: the ordering race',
@@ -152,4 +238,6 @@ export default {
   renderSVG,
   metrics,
   speakerNotes: (modeId) => NOTES[modeId],
+  yaml: (modeId) => YAML[modeId],
+  features: (modeId) => FEATURES[modeId],
 };

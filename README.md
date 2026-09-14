@@ -8,6 +8,11 @@ Built to be driven live in front of a customer — keyboard transport, speaker
 notes, a presentation mode that strips the chrome, and deep links so you can
 jump straight to the frame you want to open on.
 
+Under every animation, side by side, sit the **manifest for the active scenario**
+and an **outline of the features in play**: switching modes swaps the YAML, so a
+partial configuration reads as a diff against the golden path, and the lines each
+step is about highlight as the animation runs.
+
 No build step, no framework, no npm install. The repository root *is* the site.
 
 ---
@@ -28,11 +33,16 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 
 | Animation | What it shows |
 |---|---|
-| **Rolling upgrade: four configurations** | The same six-replica workload drained across three zones with Spread+PDB, spread only, PDB only, and neither |
+| **Multi-replica pods: what `replicas: N` buys you** | The reconciliation loop, the automatic pod recovery it genuinely provides, and the two questions a replica count never answers |
 | **Voluntary vs involuntary disruption** | Why a drain is admission-checked against the PDB and a node failure simply isn't |
+| **Rolling upgrade: four configurations** | The same six-replica workload drained across three zones with Spread+PDB, spread only, PDB only, and neither |
+| **MachineConfigPools: how many nodes at once** | Pool concurrency and custom pools — the cluster-level control that sets the shape of the upgrade |
+| **Rolling update: maxSurge vs maxUnavailable** | A Deployment replacing its own pods, and why a PDB has nothing to do with it |
 | **Graceful shutdown: the ordering race** | Why a pod returns 502s at full replica count without a `preStop` hook |
 
-Each has 2–4 modes you switch between live. The point of the modes is comparison:
+Each has 2–4 modes you switch between live. They are ordered to build on each
+other — start at the top. Seventeen modes is more than any one session needs;
+`docs/presenting.md` has a core four and a full running order. The point of the modes is comparison:
 run the same event twice and let the audience see the difference rather than
 being told it.
 
