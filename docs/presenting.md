@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **30–38 minutes** for all six, which is the right length for the
+Total runtime **42–52 minutes** for all eight, which is the right length for the
 concept half of a session before you move to the live cluster demo.
 
 ---
@@ -17,6 +17,16 @@ concept half of a session before you move to the live cluster demo.
 - [ ] Press `N` and read the notes for the modes you plan to use. They do not
       render in presentation mode on a single screen — read them beforehand or
       run a second window on your laptop display.
+- [ ] Decide your running order against the sidebar groups. **Core** is the
+      first four and stands alone; **Going deeper** is the rest, separated by a
+      rule. An **advanced** pill on a mode tab means that mode is dense even for
+      its group — currently the node-pressure and drain-with-a-volume modes.
+- [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
+      sidebar drops to the core four and the advanced modes disappear from the
+      tab rows, so there is nothing on screen to get asked about mid-session.
+      The setting persists, so check its state before a session with a different
+      audience. Your prepared deep links still work either way — opening one
+      that points into hidden material switches the toggle off for you.
 - [ ] Set speed to **slow** if you tend to talk over the animation, **fast** if
       you plan to narrate afterwards.
 - [ ] Scroll down once to confirm the manifest and feature outline sit side by
@@ -138,7 +148,71 @@ Play it end to end without commentary, then:
 
 ---
 
-### 4. MachineConfigPools (5 min)
+### 4. Graceful shutdown (4 min)
+
+Open: `#graceful-shutdown/no-prestop/0`
+
+This closes the core set. Everything so far has been about how many replicas and
+where; this is the one that is about a single request.
+
+> "This one has nothing to do with replica counts. We're at six of six the entire
+> time and users are still getting 502s."
+
+Play through. Land frame 3:
+
+> "The container has already exited. The router still has it in the pool. That
+> gap is asynchronous, it takes seconds, and it's the entire failure window —
+> per pod, per drain, per node."
+
+Switch to **With preStop** (`1`).
+
+> "preStop runs *before* SIGTERM. The sleep does nothing except wait for endpoint
+> removal to propagate. By the time the app is asked to stop, no traffic is
+> pointed at it."
+
+**Ask:** *"Have you ever seen unexplained 502s during a node drain and blamed the
+network?"* Someone in the room always has.
+
+---
+
+### 5. Requests and limits (5 min)
+
+Open: `#requests-limits/qos-classes/0`
+
+Worth running for any team that has copied a `resources` block from another
+manifest and never revisited it, which is most of them.
+
+Play **QoS classes**. The framing to open with:
+
+> "Nobody sets a quality-of-service field. It's derived from two numbers — your
+> requests and your limits — and it decides who gets killed first when a node
+> runs short."
+
+Point at the dashed area above `worker`: headroom it is *allowed* to use and not
+*guaranteed* to get.
+
+Switch to **Node under pressure** (`2`). This mode is marked advanced; it is the
+one that belongs in a resiliency session:
+
+> "Everything else today has been voluntary disruption — something chose to move
+> a pod and a budget got a say. This is the kubelet killing pods directly. No
+> eviction API, no PDB, no warning. BestEffort first, then Burstable furthest
+> above its request."
+
+Then **Fitting on a drain** (`3`), which is the one that changes behaviour:
+
+> "cache goes Pending not because the node is out of memory, but because it is
+> out of *unreserved* memory. Different numbers, and the scheduler only reads
+> one. The drain stalls, the pool stops, and the root cause is a resource
+> request several layers from where anyone will start looking."
+
+**Ask:** *"When did anyone last review the requests on your largest workloads
+against real usage?"* If they mention a VerticalPodAutoscaler in recommend-only
+mode, they are further ahead than most.
+
+---
+
+### 6. MachineConfigPools (5 min)
 
 Open: `#machine-config-pools/serial/0`
 
@@ -168,7 +242,7 @@ the most commercially interesting five minutes of the session.
 
 ---
 
-### 5. Rolling update strategy (4 min)
+### 7. Rolling update strategy (4 min)
 
 Open: `#rollout-strategy/surge/0`
 
@@ -196,27 +270,42 @@ well as drains?"* Hands usually go up.
 
 ---
 
-### 6. Graceful shutdown (4 min)
+### 8. StatefulSets (6 min)
 
-Open: `#graceful-shutdown/no-prestop/0`
+Open: `#statefulsets/identity/0`
 
-> "This one has nothing to do with replica counts. We're at six of six the entire
-> time and users are still getting 502s."
+Everything up to this point has treated pods as interchangeable. Open by saying
+so — this animation exists because that assumption breaks.
 
-Play through. Land frame 3:
+Play **Stable identity**. The beat is the replacement pod:
 
-> "The container has already exited. The router still has it in the pool. That
-> gap is asynchronous, it takes seconds, and it's the entire failure window —
-> per pod, per drain, per node."
+> "It came back as db-1. Not a new random name — the same member, the same DNS
+> record, the same volume, the same data. Every other animation we've run today
+> treated pods as cattle. The rest of this cluster knows this one by name."
 
-Switch to **With preStop** (`1`).
+Switch to **Ordered rollout** (`2`):
 
-> "preStop runs *before* SIGTERM. The sleep does nothing except wait for endpoint
-> removal to propagate. By the time the app is asked to stop, no traffic is
-> pointed at it."
+> "Highest ordinal first, one at a time, each gated on Ready. There is no
+> maxSurge here to tune. And OrderedReady means a member that never goes Ready
+> stops the rollout dead — correct for a database, deeply confusing the first
+> time you meet it."
 
-**Ask:** *"Have you ever seen unexplained 502s during a node drain and blamed the
-network?"* Someone in the room always has.
+Then **Drain with a volume** (`3`), which is the one that changes plans:
+
+> "Watch the pod sit in 'starting' while the volume is still detaching.
+> ReadWriteOnce means exactly one node may mount it, and detach-then-attach is a
+> control-plane operation measured in tens of seconds. A stateless pod would be
+> serving by now."
+
+Close on the final frame — the zone constraint:
+
+> "And that only worked because both nodes were in the same zone. A zone-pinned
+> block volume cannot attach to a node elsewhere. Spread constraints on a
+> StatefulSet are bounded by where the storage is allowed to follow."
+
+**Ask:** *"Are your stateful PDBs sized for quorum, or copied from a stateless
+workload?"* `minAvailable: 2` of 3 keeps a database writable; the stateless
+instinct of "one at a time is fine" can lose the cluster instead of degrading it.
 
 ---
 
@@ -258,9 +347,16 @@ four live; the animation already covered the middle ground.
 
 ## Short versions
 
-**The core four (20 min)** — if you only have half an hour, run animations 1, 2,
-3 and 6 and skip MachineConfigPools and rollout strategy. Those two are best kept
-for a platform team that owns the cluster, rather than an application audience.
+**The core four (20 min)** — run animations 1 to 4 and stop. They are grouped
+under **Core** in the sidebar for exactly this reason, and they are a complete
+session on their own.
+
+Add from **Going deeper** by audience rather than by time available: requests
+and limits for anyone who has ever had a pod stuck Pending, MachineConfigPools
+for a platform team that owns the cluster, rolling update strategy and
+StatefulSets for application teams. The drain-with-a-volume mode of
+StatefulSets is marked advanced even within that group — it is the densest thing
+here and is safe to skip unless someone asks why stateful recovery is slow.
 
 **5 minutes** — `#multi-replica/the-limit/0` played once, then
 `#upgrade-resiliency/d-full/0`. The first shows the problem, the second the fix.

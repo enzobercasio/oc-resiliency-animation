@@ -248,6 +248,7 @@ const NOTES = {
 
 export default {
   id: 'machine-config-pools',
+  advanced: true,
   title: 'MachineConfigPools: how many nodes at once',
   summary: 'The cluster-level control behind an upgrade — pool concurrency, and custom pools that let you choose which nodes move first.',
   description: 'Six worker nodes upgrading under three different MachineConfigPool configurations.',

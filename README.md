@@ -36,13 +36,25 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 | **Multi-replica pods: what `replicas: N` buys you** | The reconciliation loop, the automatic pod recovery it genuinely provides, and the two questions a replica count never answers |
 | **Voluntary vs involuntary disruption** | Why a drain is admission-checked against the PDB and a node failure simply isn't |
 | **Rolling upgrade: four configurations** | The same six-replica workload drained across three zones with Spread+PDB, spread only, PDB only, and neither |
+| **Graceful shutdown: the ordering race** | Why a pod returns 502s at full replica count without a `preStop` hook |
+| *Going deeper* | |
+| **Requests and limits: reservation vs ceiling** | QoS classes, kubelet eviction order under node pressure, and why a drained pod can fail to fit |
 | **MachineConfigPools: how many nodes at once** | Pool concurrency and custom pools — the cluster-level control that sets the shape of the upgrade |
 | **Rolling update: maxSurge vs maxUnavailable** | A Deployment replacing its own pods, and why a PDB has nothing to do with it |
-| **Graceful shutdown: the ordering race** | Why a pod returns 502s at full replica count without a `preStop` hook |
+| **StatefulSets: when pods are not interchangeable** | Stable identity, ordered rollouts, and the volume attach that dominates stateful recovery time |
 
-Each has 2–4 modes you switch between live. They are ordered to build on each
-other — start at the top. Seventeen modes is more than any one session needs;
-`docs/presenting.md` has a core four and a full running order. The point of the modes is comparison:
+Each has 2–4 modes you switch between live, and they are ordered to build on
+each other — start at the top.
+
+The sidebar groups them into **Core** and **Going deeper**, and the **Beginner**
+toggle in the top bar narrows it to the core four — a complete session on its
+own. An **advanced** pill on a mode tab marks a mode that is dense even for its
+group; beginner mode hides those too.
+
+Nothing is lost when the toggle is on: a button under the sidebar says how many
+animations are hidden and switches back, and a deep link into hidden material
+turns the toggle off rather than failing. The preference persists between
+visits. `docs/presenting.md` has both running orders. The point of the modes is comparison:
 run the same event twice and let the audience see the difference rather than
 being told it.
 
@@ -57,6 +69,7 @@ being told it.
 | `Home` `End` | first / last frame |
 | `1`–`4` | switch scenario within the animation |
 | `J` `K` | previous / next animation |
+| `B` | beginner mode — core set only |
 | `N` | speaker notes panel |
 | `T` | light / dark |
 | `F` | presentation mode (hides chrome, scales up) |

@@ -18,13 +18,19 @@ import disruptionTypes from './animations/disruption-types.js';
 import upgradeResiliency from './animations/upgrade-resiliency.js';
 import machineConfigPools from './animations/machine-config-pools.js';
 import rolloutStrategy from './animations/rollout-strategy.js';
+import statefulSets from './animations/statefulsets.js';
+import requestsLimits from './animations/requests-limits.js';
 import gracefulShutdown from './animations/graceful-shutdown.js';
 
 export const animations = [
+  // Core - the path a beginner should take, in order.
   multiReplica,
   disruptionTypes,
   upgradeResiliency,
+  gracefulShutdown,
+  // Going deeper - marked advanced, grouped separately in the sidebar.
+  requestsLimits,
   machineConfigPools,
   rolloutStrategy,
-  gracefulShutdown,
+  statefulSets,
 ];

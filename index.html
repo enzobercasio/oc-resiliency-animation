@@ -16,6 +16,10 @@
     <span>Workload resiliency <span class="brand-dim">— animated explainers</span></span>
   </div>
   <div class="topbar-actions">
+    <div id="level-switch" class="level-switch" role="radiogroup" aria-label="Audience level">
+      <button id="btn-level-beginner" class="icon-btn" role="radio" aria-checked="false" title="Show the core set only (b)">Beginner</button>
+      <button id="btn-level-advanced" class="icon-btn" role="radio" aria-checked="true" title="Show everything (b)">Advanced</button>
+    </div>
     <button id="btn-notes" class="icon-btn" aria-pressed="false" title="Speaker notes (n)">Notes</button>
     <button id="btn-theme" class="icon-btn" title="Toggle light/dark (t)">Theme</button>
     <button id="btn-present" class="icon-btn" title="Presentation mode (f)">Present</button>
@@ -26,8 +30,8 @@
 <div class="layout">
 
   <nav class="sidebar" aria-label="Animations">
-    <p class="sidebar-label">Animations</p>
     <ul id="anim-list" class="anim-list"></ul>
+    <button id="level-hint" class="level-hint" hidden></button>
     <p class="sidebar-foot">
       Deep-link any frame:<br>
       <code>#id/mode/step</code>
@@ -107,6 +111,7 @@
       <dt>Home / End</dt><dd>first / last step</dd>
       <dt>1 – 4</dt><dd>switch scenario</dd>
       <dt>J / K</dt><dd>previous / next animation</dd>
+      <dt>B</dt><dd>beginner / advanced</dd>
       <dt>N</dt><dd>speaker notes</dd>
       <dt>T</dt><dd>light / dark</dd>
       <dt>F</dt><dd>presentation mode</dd>

@@ -19,6 +19,7 @@ export default {
   renderSVG(frame, ctx) -> string,
 
   // optional
+  advanced: true,              // groups it under "Going deeper" in the sidebar
   viewBox: '0 0 680 350',      // defaults to '0 0 680 350'
   description: '…',            // screen-reader <desc> for the canvas
   metrics(frame, history) -> Metric[],
@@ -151,6 +152,35 @@ missing PDB is exactly what a partial configuration is trying to convey:
 `kind` is the API group, resource or field path — whatever tells a reader where
 the thing lives. Order features in the order the animation touches them.
 
+### Marking material as advanced
+
+`advanced: true` on the module groups the animation under **Going deeper** in
+the sidebar rather than **Core**, and mutes its sidebar entry a step. The same
+flag on an individual mode puts a small **advanced** pill on its tab and an
+"(advanced)" suffix on its accessible label.
+
+A note from getting this wrong once: the first version used an 11px muted
+heading and a 5px grey dot. Both rendered correctly and neither was noticeable,
+which is the same as not shipping them. If a marker is meant to change what
+someone does, it has to survive being seen across a room — use a word rather
+than a shape, and give group headings a divider.
+
+The flag does two things: it groups the entry in the sidebar, and it is what the
+**Beginner** toggle filters on. With the toggle off — the default — nothing is
+hidden and the flag is only a signpost. With it on, flagged animations and modes
+are removed from the sidebar and the tab rows.
+
+Hiding is always reversible and never silent: a button under the sidebar reports
+how many animations are hidden and restores them, and a deep link into hidden
+material turns the toggle off rather than failing. Keep it that way. If a mode is
+confusing enough that you want it gone permanently, the honest fix is to rewrite
+or split it — not to rely on a default that hides it.
+
+Keep core animations first in the registry so the sidebar numbering, the J/K
+cycle order and the running order in `docs/presenting.md` all agree.
+
+---
+
 ### Highlighting lines as frames advance
 
 Any frame may carry `focus`, an array of substrings. Manifest lines containing
@@ -253,10 +283,11 @@ node tools/check-animations.mjs           # every frame of every mode builds and
 node tools/check-bounds.mjs               # geometry inside the viewBox
 node tools/check-hidden-toggles.mjs       # the [hidden] cascade guard is intact
 node tools/check-links.mjs                # deep links in the docs still resolve
+node tools/check-grouping.mjs             # Core/Going deeper split is visible
 ./scripts/serve.sh                        # then check it in BOTH themes (press T)
 ```
 
-All five tools are dependency-free and safe to wire into CI.
+All six tools are dependency-free and safe to wire into CI.
 
 The theme check is not optional. Dark mode is where hardcoded colours surface,
 and it is the mode most people present in.

@@ -235,6 +235,7 @@ const NOTES = {
 
 export default {
   id: 'rollout-strategy',
+  advanced: true,
   title: 'Rolling update: maxSurge vs maxUnavailable',
   summary: 'How a Deployment replaces its own pods during an application rollout, and why a pod disruption budget has nothing to do with it.',
   description: 'Four replicas moving from an old version to a new one under three different rolling update strategies.',

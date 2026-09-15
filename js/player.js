@@ -17,24 +17,72 @@ const state = {
   timer: null,       // interval handle when playing
   speed: 1000,       // ms per frame
   yamlRaw: '',       // active manifest, for the copy button
+  beginner: false,   // beginner mode: show the core set only
 };
 
 /* ------------------------------------------------------------------ */
 /* Sidebar                                                             */
 /* ------------------------------------------------------------------ */
 
+/* What beginner mode shows. Advanced material is filtered from browsing, never
+   deleted - the hint button under the sidebar always leads back to it, and a
+   deep link to hidden content switches the mode off rather than failing. */
+function visibleAnimations() {
+  return state.beginner ? animations.filter((a) => !a.advanced) : animations;
+}
+
+function visibleModes(anim) {
+  const shown = state.beginner ? anim.modes.filter((m) => !m.advanced) : anim.modes;
+  return shown.length ? shown : anim.modes;   // never leave an animation with no mode
+}
+
+function isHidden(anim, modeId) {
+  if (!state.beginner) return false;
+  if (anim.advanced) return true;
+  return Boolean(modeId && anim.modes.find((m) => m.id === modeId)?.advanced);
+}
+
+/* Animations are grouped rather than filtered. Nothing is hidden - a beginner
+   gets an obvious path through the core set, and the deeper material stays one
+   click away for an audience that wants it. */
 function buildSidebar() {
   const list = el('anim-list');
   list.innerHTML = '';
-  animations.forEach((a, n) => {
-    const li = document.createElement('li');
-    const b = document.createElement('button');
-    b.innerHTML = `<span class="num">${String(n + 1).padStart(2, '0')}</span>${a.title}`;
-    b.onclick = () => selectAnimation(a.id);
-    b.dataset.animId = a.id;
-    li.appendChild(b);
-    list.appendChild(li);
+
+  const shown = visibleAnimations();
+  const groups = [
+    { label: 'Core', items: shown.filter((a) => !a.advanced) },
+    { label: 'Going deeper', items: shown.filter((a) => a.advanced) },
+  ];
+
+  let n = 0;
+  groups.forEach((g) => {
+    if (!g.items.length) return;
+    const head = document.createElement('li');
+    head.className = 'group-label';
+    head.setAttribute('role', 'presentation');
+    head.textContent = g.label;
+    list.appendChild(head);
+
+    g.items.forEach((a) => {
+      n += 1;
+      const li = document.createElement('li');
+      if (a.advanced) li.className = 'deeper';
+      const b = document.createElement('button');
+      b.innerHTML = `<span class="num">${String(n).padStart(2, '0')}</span>${esc(a.title)}`;
+      b.onclick = () => selectAnimation(a.id);
+      b.dataset.animId = a.id;
+      li.appendChild(b);
+      list.appendChild(li);
+    });
   });
+
+  const hiddenCount = animations.length - shown.length;
+  const hint = el('level-hint');
+  hint.hidden = !state.beginner || hiddenCount === 0;
+  if (!hint.hidden) {
+    hint.textContent = `${hiddenCount} more under Going deeper — show everything`;
+  }
 }
 
 function markSidebar() {
@@ -58,18 +106,24 @@ function selectAnimation(id, modeId, step) {
 
   const tabs = el('mode-tabs');
   tabs.innerHTML = '';
-  anim.modes.forEach((m) => {
+  visibleModes(anim).forEach((m) => {
     const b = document.createElement('button');
     b.textContent = m.label;
     b.setAttribute('role', 'tab');
     b.dataset.modeId = m.id;
+    if (m.advanced) {
+      b.classList.add('adv');
+      b.title = 'Going deeper — safe to skip for a beginner audience';
+      b.setAttribute('aria-label', `${m.label} (advanced)`);
+    }
     b.onclick = () => selectMode(m.id);
     tabs.appendChild(b);
   });
-  tabs.hidden = anim.modes.length < 2;
+  tabs.hidden = visibleModes(anim).length < 2;
 
   markSidebar();
-  selectMode(modeId && anim.modes.some((m) => m.id === modeId) ? modeId : anim.modes[0].id, step);
+  const shown = visibleModes(anim);
+  selectMode(modeId && shown.some((m) => m.id === modeId) ? modeId : shown[0].id, step);
 }
 
 function selectMode(modeId, step) {
@@ -246,7 +300,11 @@ function writeHash() {
 function readHash() {
   const [id, mode, step] = decodeURIComponent(location.hash.slice(1)).split('/');
   if (!id) return false;
-  if (!animations.some((a) => a.id === id)) return false;
+  const anim = animations.find((a) => a.id === id);
+  if (!anim) return false;
+  // An explicit link is an explicit request: rather than fail silently, drop
+  // out of beginner mode so the linked frame can actually be shown.
+  if (isHidden(anim, mode)) toggleLevel(false);
   selectAnimation(id, mode, step);
   return true;
 }
@@ -260,6 +318,24 @@ function toggleTheme() {
   const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
   root.dataset.theme = next;
   try { localStorage.setItem('theme', next); } catch (e) { /* private mode */ }
+}
+
+function toggleLevel(force) {
+  state.beginner = force !== undefined ? force : !state.beginner;
+  try { localStorage.setItem('beginner', String(state.beginner)); } catch (e) { /* private mode */ }
+  el('btn-level-beginner').setAttribute('aria-checked', String(state.beginner));
+  el('btn-level-advanced').setAttribute('aria-checked', String(!state.beginner));
+
+  buildSidebar();
+
+  // If the current selection just became hidden, move somewhere valid rather
+  // than leaving the stage showing something the sidebar no longer lists.
+  if (isHidden(state.anim, state.mode)) {
+    const fallback = state.anim.advanced ? visibleAnimations()[0].id : state.anim.id;
+    selectAnimation(fallback);
+  } else {
+    markSidebar();
+  }
 }
 
 function toggleNotes(force) {
@@ -297,6 +373,9 @@ function wire() {
     if (state.timer) { stop(); play(); }
   };
   el('yaml-copy').onclick = copyYaml;
+  el('btn-level-beginner').onclick = () => toggleLevel(true);
+  el('btn-level-advanced').onclick = () => toggleLevel(false);
+  el('level-hint').onclick = () => toggleLevel(false);
   el('btn-theme').onclick = toggleTheme;
   el('btn-notes').onclick = () => toggleNotes();
   el('btn-present').onclick = () => togglePresent();
@@ -324,14 +403,16 @@ function wire() {
       else if (document.body.classList.contains('presenting')) togglePresent(false);
       return;
     }
+    if (k === 'b' || k === 'B') { toggleLevel(); return; }
     if (k === 'j' || k === 'J' || k === 'k' || k === 'K') {
-      const idx = animations.findIndex((a) => a.id === state.anim.id);
-      const next = (k.toLowerCase() === 'k' ? idx + 1 : idx - 1 + animations.length) % animations.length;
-      selectAnimation(animations[next].id);
+      const list = visibleAnimations();
+      const idx = list.findIndex((a) => a.id === state.anim.id);
+      const next = (k.toLowerCase() === 'k' ? idx + 1 : idx - 1 + list.length) % list.length;
+      selectAnimation(list[next].id);
       return;
     }
     if (/^[1-9]$/.test(k)) {
-      const m = state.anim.modes[parseInt(k, 10) - 1];
+      const m = visibleModes(state.anim)[parseInt(k, 10) - 1];
       if (m) selectMode(m.id);
     }
   });
@@ -347,6 +428,10 @@ function boot() {
     if (saved) document.documentElement.dataset.theme = saved;
     else if (matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark';
   } catch (e) { /* ignore */ }
+
+  try { state.beginner = localStorage.getItem('beginner') === 'true'; } catch (e) { /* ignore */ }
+  el('btn-level-beginner').setAttribute('aria-checked', String(state.beginner));
+  el('btn-level-advanced').setAttribute('aria-checked', String(!state.beginner));
 
   buildSidebar();
   wire();

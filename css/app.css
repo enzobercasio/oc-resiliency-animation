@@ -46,6 +46,16 @@ body {
 .icon-btn:hover { background: var(--surface-2); }
 .icon-btn[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
 
+/* Beginner/Advanced as a two-option radio group reads unambiguously as a
+   switch with a current position - a single button whose only feedback was a
+   color change looked like it wasn't doing anything. */
+.level-switch { display: flex; }
+.level-switch .icon-btn { border-radius: 0; }
+.level-switch .icon-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.level-switch .icon-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; border-left: none; }
+.level-switch .icon-btn[aria-checked="true"] { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.level-switch .icon-btn[aria-checked="true"] + .icon-btn { border-left-color: var(--accent); }
+
 /* ---------- layout ---------- */
 .layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 0; align-items: start; }
 .sidebar {
@@ -60,6 +70,21 @@ body {
   color: var(--text-muted); margin: 0 0 10px;
 }
 .sidebar-foot { text-transform: none; letter-spacing: 0; margin-top: 24px; line-height: 1.6; }
+
+/* Shown only in beginner mode, so hidden material is always one click from
+   coming back. Content that silently disappears is worse than content that is
+   merely grouped. */
+.level-hint {
+  display: block; width: 100%; text-align: left;
+  font: inherit; font-size: 12px; line-height: 1.5;
+  margin-top: 16px; padding: 9px 11px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.level-hint:hover { background: var(--surface-2); color: var(--text-primary); }
 .sidebar-foot code { font-family: var(--font-mono); font-size: 11px; }
 
 .anim-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -74,6 +99,40 @@ body {
   background: var(--accent-bg); color: var(--accent); border-color: var(--accent);
 }
 .anim-list .num { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-right: 7px; }
+/* Group headings have to read as structure, not as decoration. An earlier
+   version used the same 11px muted style as the label they replaced and was
+   invisible in practice. */
+.anim-list .group-label {
+  font-size: 11.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0 0 6px; padding: 0 11px;
+}
+.anim-list .group-label + li button { margin-top: 0; }
+.anim-list .group-label:not(:first-child) {
+  margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+/* Deeper entries sit back a step from the core path without being hidden. */
+.anim-list li.deeper button { color: var(--text-secondary); }
+.anim-list li.deeper button:hover,
+.anim-list li.deeper button[aria-current="true"] { color: var(--text-accent, var(--accent)); }
+
+/* An advanced mode is marked, never hidden. A word beats a dot: the dot version
+   of this was too subtle to notice at presentation distance. */
+.tabs button.adv::after {
+  content: "advanced";
+  display: inline-block;
+  font-size: 9.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 1px 6px; margin-left: 8px;
+  border-radius: 999px;
+  background: var(--surface-2); color: var(--text-secondary);
+  vertical-align: 1px;
+}
+.tabs button.adv[aria-selected="true"]::after {
+  background: var(--accent); color: var(--surface-1);
+}
 
 .stage { padding: 24px 28px 56px; max-width: 960px; }
 .stage-head h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
