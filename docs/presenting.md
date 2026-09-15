@@ -3,8 +3,8 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **50–60 minutes** for all ten, which is the right length for the
-concept half of a session before you move to the live cluster demo.
+Total runtime **55–65 minutes** for all eleven, which is the right length for
+the concept half of a session before you move to the live cluster demo.
 
 ---
 
@@ -18,12 +18,13 @@ concept half of a session before you move to the live cluster demo.
       render in presentation mode on a single screen — read them beforehand or
       run a second window on your laptop display.
 - [ ] Decide your running order against the sidebar groups. **Core** is the
-      first six and stands alone; **Going deeper** is the rest, separated by a
+      first seven and stands alone; **Going deeper** is the rest, separated by a
       rule. An **advanced** pill on a mode tab means that mode is dense even for
       its group — currently the required-rule-with-no-room,
-      ScheduleAnyway-proceeds, node-pressure and drain-with-a-volume modes.
+      ScheduleAnyway-proceeds, when-it-never-recovers, node-pressure and
+      drain-with-a-volume modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
-      sidebar drops to the core six and the advanced modes disappear from the
+      sidebar drops to the core seven and the advanced modes disappear from the
       tab rows, so there is nothing on screen to get asked about mid-session.
       The setting persists, so check its state before a session with a different
       audience. Your prepared deep links still work either way — opening one
@@ -143,12 +144,47 @@ If the audience is past the core set, switch to **ScheduleAnyway proceeds**
 
 ---
 
-### 4. Voluntary vs involuntary disruption (4 min)
+### 4. Pod disruption budgets (5 min)
+
+Open: `#pod-disruption-budget/min-available/0`
+
+The last two animations were about where a pod lands. This one is about the
+budget on evicting it once it has — the mechanism the next animation assumes
+you already understand.
+
+Play **minAvailable: an absolute floor**. Land the scale-down frame:
+
+> "Nobody touched the PodDisruptionBudget. The Deployment just scaled from six
+> replicas to five, and disruptionsAllowed went from one to zero — permanently,
+> at this replica count, not for a moment."
+
+Switch to **maxUnavailable: a scaling ceiling** (`2`):
+
+> "Same idea, written as a percentage instead. Scale up to ten and
+> disruptionsAllowed recalculates itself to two. Nobody edited this manifest —
+> a percentage is the version that survives the next scaling event."
+
+**Ask:** *"Do any of your budgets use an absolute minAvailable on a Deployment
+that also has an HPA attached?"*
+
+If the audience is past the core set, switch to **When it never recovers**
+(`3`, marked advanced):
+
+> "Watch the replacement pod — it's Running, it's just never Ready.
+> disruptionsAllowed does not know the difference between 'recovering' and
+> 'never going to recover.' It stays at zero forever, and every retry after
+> this one is refused for the same reason. The fix isn't in the PDB at all."
+
+---
+
+### 5. Voluntary vs involuntary disruption (4 min)
 
 Open: `#disruption-types/voluntary/0`
 
 This picks up the "how fast can they be taken away" half of the question
-multi-replica ended on — the two placement animations just answered "where."
+multi-replica ended on — the two placement animations just answered "where,"
+and the budget animation just covered how the arithmetic works. This is where
+it gets used, and where its limits show up.
 
 Play through the voluntary case. The beat to land is frame 4 — the HTTP 429:
 
@@ -167,7 +203,7 @@ right now?"* Let the silence sit.
 
 ---
 
-### 5. Rolling upgrade, four configurations (8 min)
+### 6. Rolling upgrade, four configurations (8 min)
 
 Open: `#upgrade-resiliency/a-none/0`
 
@@ -214,7 +250,7 @@ Play it end to end without commentary, then:
 
 ---
 
-### 6. Graceful shutdown (4 min)
+### 7. Graceful shutdown (4 min)
 
 Open: `#graceful-shutdown/no-prestop/0`
 
@@ -241,7 +277,7 @@ network?"* Someone in the room always has.
 
 ---
 
-### 7. Requests and limits (5 min)
+### 8. Requests and limits (5 min)
 
 Open: `#requests-limits/qos-classes/0`
 
@@ -278,7 +314,7 @@ mode, they are further ahead than most.
 
 ---
 
-### 8. MachineConfigPools (5 min)
+### 9. MachineConfigPools (5 min)
 
 Open: `#machine-config-pools/serial/0`
 
@@ -308,7 +344,7 @@ the most commercially interesting five minutes of the session.
 
 ---
 
-### 9. Rolling update strategy (4 min)
+### 10. Rolling update strategy (4 min)
 
 Open: `#rollout-strategy/surge/0`
 
@@ -336,7 +372,7 @@ well as drains?"* Hands usually go up.
 
 ---
 
-### 10. StatefulSets (6 min)
+### 11. StatefulSets (6 min)
 
 Open: `#statefulsets/identity/0`
 
@@ -413,7 +449,7 @@ four live; the animation already covered the middle ground.
 
 ## Short versions
 
-**The core six (28 min)** — run animations 1 to 6 and stop. They are grouped
+**The core seven (33 min)** — run animations 1 to 7 and stop. They are grouped
 under **Core** in the sidebar for exactly this reason, and they are a complete
 session on their own.
 

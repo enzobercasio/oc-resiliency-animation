@@ -12,8 +12,12 @@
  * required-rule-with-nowhere-to-go gotcha; topology-spread is the same
  * hard-vs-soft question asked again one mechanism over - a looser, more
  * scalable spread than anti-affinity, with the identical DoNotSchedule vs
- * ScheduleAnyway tradeoff; disruption-types answers "how fast can they be
- * taken away"; upgrade-resiliency puts placement and drain rate together;
+ * ScheduleAnyway tradeoff; pod-disruption-budget covers the budget mechanism
+ * in isolation - an absolute floor vs a percentage ceiling, and a replacement
+ * that never becomes Ready - so disruption-types can assume it and spend its
+ * whole runtime on voluntary vs involuntary instead of re-deriving what a PDB
+ * is; disruption-types answers "how fast can they be taken away";
+ * upgrade-resiliency puts placement and drain rate together;
  * machine-config-pools zooms out to the cluster-level control that sets the
  * shape of the whole upgrade; rollout-strategy covers the separate case of a
  * Deployment replacing its own pods; graceful-shutdown is the coda about
@@ -22,6 +26,7 @@
 import multiReplica from './animations/multi-replica.js';
 import podAffinity from './animations/pod-affinity.js';
 import topologySpread from './animations/topology-spread.js';
+import podDisruptionBudget from './animations/pod-disruption-budget.js';
 import disruptionTypes from './animations/disruption-types.js';
 import upgradeResiliency from './animations/upgrade-resiliency.js';
 import machineConfigPools from './animations/machine-config-pools.js';
@@ -35,6 +40,7 @@ export const animations = [
   multiReplica,
   podAffinity,
   topologySpread,
+  podDisruptionBudget,
   disruptionTypes,
   upgradeResiliency,
   gracefulShutdown,
