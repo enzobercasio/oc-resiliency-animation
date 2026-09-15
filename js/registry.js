@@ -26,7 +26,11 @@
  * cluster-level control that sets the shape of the whole upgrade;
  * rollout-strategy covers the separate case of a Deployment replacing its
  * own pods; graceful-shutdown is the coda about in-flight requests, which is
- * orthogonal to all of it.
+ * orthogonal to all of it. In Going deeper, priority-preemption comes right
+ * after requests-limits as its direct sequel - showing the PriorityClass fix
+ * that animation only name-drops, and the gotcha that preemption deletes a
+ * pod directly rather than calling the eviction subresource - a third
+ * disruption category a PodDisruptionBudget can never see coming.
  */
 import multiReplica from './animations/multi-replica.js';
 import podAffinity from './animations/pod-affinity.js';
@@ -39,6 +43,7 @@ import machineConfigPools from './animations/machine-config-pools.js';
 import rolloutStrategy from './animations/rollout-strategy.js';
 import statefulSets from './animations/statefulsets.js';
 import requestsLimits from './animations/requests-limits.js';
+import priorityPreemption from './animations/priority-preemption.js';
 import gracefulShutdown from './animations/graceful-shutdown.js';
 
 export const animations = [
@@ -53,6 +58,7 @@ export const animations = [
   gracefulShutdown,
   // Going deeper - marked advanced, grouped separately in the sidebar.
   requestsLimits,
+  priorityPreemption,
   machineConfigPools,
   rolloutStrategy,
   statefulSets,

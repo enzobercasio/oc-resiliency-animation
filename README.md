@@ -42,6 +42,7 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 | **Startup, readiness, and liveness probes: three different questions** | Readiness gates traffic, liveness restarts a hung container, and a slow starter crash-loops without a startupProbe |
 | **Graceful shutdown: the ordering race** | Why a pod returns 502s at full replica count without a `preStop` hook |
 | *Going deeper* | |
+| **PriorityClass and preemption: who gets to keep the room** | A pod that preempts a lower-priority one to fit, and a PodDisruptionBudget that preemption never consults |
 | **Requests and limits: reservation vs ceiling** | QoS classes, kubelet eviction order under node pressure, and why a drained pod can fail to fit |
 | **MachineConfigPools: how many nodes at once** | Pool concurrency and custom pools — the cluster-level control that sets the shape of the upgrade |
 | **Rolling update: maxSurge vs maxUnavailable** | A Deployment replacing its own pods, and why a PDB has nothing to do with it |

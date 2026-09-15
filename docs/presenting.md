@@ -3,8 +3,8 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **60–70 minutes** for all twelve, which is the right length for
-the concept half of a session before you move to the live cluster demo.
+Total runtime **64–75 minutes** for all thirteen, which is the right length
+for the concept half of a session before you move to the live cluster demo.
 
 ---
 
@@ -21,7 +21,8 @@ the concept half of a session before you move to the live cluster demo.
       first eight and stands alone; **Going deeper** is the rest, separated by a
       rule. An **advanced** pill on a mode tab means that mode is dense even for
       its group — currently the required-rule-with-no-room,
-      ScheduleAnyway-proceeds, when-it-never-recovers, node-pressure and
+      ScheduleAnyway-proceeds, when-it-never-recovers,
+      preemption-bypasses-the-eviction-API, node-pressure and
       drain-with-a-volume modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
       sidebar drops to the core eight and the advanced modes disappear from the
@@ -328,8 +329,9 @@ network?"* Someone in the room always has.
 
 Open: `#requests-limits/qos-classes/0`
 
-Worth running for any team that has copied a `resources` block from another
-manifest and never revisited it, which is most of them.
+This opens **Going deeper**. Worth running for any team that has copied a
+`resources` block from another manifest and never revisited it, which is most
+of them.
 
 Play **QoS classes**. The framing to open with:
 
@@ -361,7 +363,39 @@ mode, they are further ahead than most.
 
 ---
 
-### 10. MachineConfigPools (5 min)
+### 10. PriorityClass and preemption (5 min)
+
+Open: `#priority-preemption/stuck/0`
+
+The direct sequel to the animation you just ran: that one ends with a pod
+going Pending and PriorityClass named as the fix nobody showed. Here it is.
+
+Play **Pending, regardless of priority**. Land the closing frame:
+
+> "critical-job and everything already running are, to the scheduler,
+> completely indistinguishable. Priority is not urgency — it's a number, and
+> by default every pod has the same one."
+
+Switch to **A higher priority preempts to make room** (`2`):
+
+> "Same node, one line added: priorityClassName. The scheduler picks the
+> smallest set of lower-priority pods it can remove — not just the lowest
+> priority on the cluster — and deletes one to make room."
+
+**Ask:** *"If two teams' workloads both claimed 'business critical' priority,
+whose actually wins?"*
+
+If the audience already sat through pod disruption budgets, switch to
+**Preemption bypasses the eviction API** (`3`, marked advanced):
+
+> "batch-job carries the exact deadlock-shaped budget from four animations
+> ago — minAvailable equal to its own replica count. It does not matter here.
+> Preemption deletes the pod directly. It never calls the eviction API, so
+> the PDB is never even consulted."
+
+---
+
+### 11. MachineConfigPools (5 min)
 
 Open: `#machine-config-pools/serial/0`
 
@@ -391,7 +425,7 @@ the most commercially interesting five minutes of the session.
 
 ---
 
-### 11. Rolling update strategy (4 min)
+### 12. Rolling update strategy (4 min)
 
 Open: `#rollout-strategy/surge/0`
 
@@ -419,7 +453,7 @@ well as drains?"* Hands usually go up.
 
 ---
 
-### 12. StatefulSets (6 min)
+### 13. StatefulSets (6 min)
 
 Open: `#statefulsets/identity/0`
 
