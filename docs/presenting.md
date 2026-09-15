@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **42–52 minutes** for all eight, which is the right length for the
+Total runtime **46–56 minutes** for all nine, which is the right length for the
 concept half of a session before you move to the live cluster demo.
 
 ---
@@ -18,11 +18,12 @@ concept half of a session before you move to the live cluster demo.
       render in presentation mode on a single screen — read them beforehand or
       run a second window on your laptop display.
 - [ ] Decide your running order against the sidebar groups. **Core** is the
-      first four and stands alone; **Going deeper** is the rest, separated by a
+      first five and stands alone; **Going deeper** is the rest, separated by a
       rule. An **advanced** pill on a mode tab means that mode is dense even for
-      its group — currently the node-pressure and drain-with-a-volume modes.
+      its group — currently the required-rule-with-no-room, node-pressure and
+      drain-with-a-volume modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
-      sidebar drops to the core four and the advanced modes disappear from the
+      sidebar drops to the core five and the advanced modes disappear from the
       tab rows, so there is nothing on screen to get asked about mid-session.
       The setting persists, so check its state before a session with a different
       audience. Your prepared deep links still work either way — opening one
@@ -77,7 +78,38 @@ where or how fast they may be taken away. Those are the next two animations.
 
 ---
 
-### 2. Voluntary vs involuntary disruption (4 min)
+### 2. Pod affinity and anti-affinity (4 min)
+
+Open: `#pod-affinity/colocate/0`
+
+This answers the "where" half of the question multi-replica just ended on,
+directly and by name.
+
+Play **Affinity: pull together**. Land the scheduling-check frame:
+
+> "Only one node passes: the one already running the pod cache needs to sit
+> beside. Affinity pulls a pod toward a match — the mechanism you are about to
+> see run in reverse."
+
+Switch to **Anti-affinity: push apart** (`2`):
+
+> "Same idea, opposite direction. Every replica excludes the node the last one
+> landed on. This is the actual fix for 'all four replicas, one node' from the
+> previous animation — not a bigger replica count, a placement rule."
+
+**Ask:** *"Is this rule on any of your multi-replica deployments today, or did
+they just get lucky with placement?"*
+
+If the audience is past the core set, switch to **When required has no room**
+(`3`, marked advanced):
+
+> "Scale to four replicas, still three nodes. required does not mean 'try to
+> spread' — it means 'never co-locate,' and when nothing satisfies that, the
+> pod sits Pending. Not retried elsewhere. Waiting."
+
+---
+
+### 3. Voluntary vs involuntary disruption (4 min)
 
 Open: `#disruption-types/voluntary/0`
 
@@ -101,7 +133,7 @@ right now?"* Let the silence sit.
 
 ---
 
-### 3. Rolling upgrade, four configurations (8 min)
+### 4. Rolling upgrade, four configurations (8 min)
 
 Open: `#upgrade-resiliency/a-none/0`
 
@@ -148,7 +180,7 @@ Play it end to end without commentary, then:
 
 ---
 
-### 4. Graceful shutdown (4 min)
+### 5. Graceful shutdown (4 min)
 
 Open: `#graceful-shutdown/no-prestop/0`
 
@@ -175,7 +207,7 @@ network?"* Someone in the room always has.
 
 ---
 
-### 5. Requests and limits (5 min)
+### 6. Requests and limits (5 min)
 
 Open: `#requests-limits/qos-classes/0`
 
@@ -212,7 +244,7 @@ mode, they are further ahead than most.
 
 ---
 
-### 6. MachineConfigPools (5 min)
+### 7. MachineConfigPools (5 min)
 
 Open: `#machine-config-pools/serial/0`
 
@@ -242,7 +274,7 @@ the most commercially interesting five minutes of the session.
 
 ---
 
-### 7. Rolling update strategy (4 min)
+### 8. Rolling update strategy (4 min)
 
 Open: `#rollout-strategy/surge/0`
 
@@ -270,7 +302,7 @@ well as drains?"* Hands usually go up.
 
 ---
 
-### 8. StatefulSets (6 min)
+### 9. StatefulSets (6 min)
 
 Open: `#statefulsets/identity/0`
 
@@ -347,7 +379,7 @@ four live; the animation already covered the middle ground.
 
 ## Short versions
 
-**The core four (20 min)** — run animations 1 to 4 and stop. They are grouped
+**The core five (24 min)** — run animations 1 to 5 and stop. They are grouped
 under **Core** in the sidebar for exactly this reason, and they are a complete
 session on their own.
 

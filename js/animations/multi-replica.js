@@ -270,7 +270,7 @@ const FEATURES = {
     {
       "name": "podAntiAffinity",
       "kind": "affinity",
-      "what": "Absent here, which is part of why all four landed together. It would have kept replicas on separate nodes - see the upgrade animation for the modern alternative."
+      "what": "Absent here, which is part of why all four landed together. It would have kept replicas on separate nodes - see the next animation."
     }
   ]
 };

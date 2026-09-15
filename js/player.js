@@ -95,18 +95,11 @@ function markSidebar() {
 /* Selection                                                           */
 /* ------------------------------------------------------------------ */
 
-function selectAnimation(id, modeId, step) {
-  const anim = animations.find((a) => a.id === id) || animations[0];
-  state.anim = anim;
-  el('anim-title').textContent = anim.title;
-  el('anim-summary').textContent = anim.summary;
-  el('canvas').setAttribute('viewBox', anim.viewBox || '0 0 680 350');
-  el('canvas-title').textContent = anim.title;
-  el('canvas-desc').textContent = anim.description || anim.summary;
-
+function buildTabs(anim) {
   const tabs = el('mode-tabs');
   tabs.innerHTML = '';
-  visibleModes(anim).forEach((m) => {
+  const shown = visibleModes(anim);
+  shown.forEach((m) => {
     const b = document.createElement('button');
     b.textContent = m.label;
     b.setAttribute('role', 'tab');
@@ -119,7 +112,19 @@ function selectAnimation(id, modeId, step) {
     b.onclick = () => selectMode(m.id);
     tabs.appendChild(b);
   });
-  tabs.hidden = visibleModes(anim).length < 2;
+  tabs.hidden = shown.length < 2;
+}
+
+function selectAnimation(id, modeId, step) {
+  const anim = animations.find((a) => a.id === id) || animations[0];
+  state.anim = anim;
+  el('anim-title').textContent = anim.title;
+  el('anim-summary').textContent = anim.summary;
+  el('canvas').setAttribute('viewBox', anim.viewBox || '0 0 680 350');
+  el('canvas-title').textContent = anim.title;
+  el('canvas-desc').textContent = anim.description || anim.summary;
+
+  buildTabs(anim);
 
   markSidebar();
   const shown = visibleModes(anim);
@@ -334,6 +339,9 @@ function toggleLevel(force) {
     const fallback = state.anim.advanced ? visibleAnimations()[0].id : state.anim.id;
     selectAnimation(fallback);
   } else {
+    // The current selection is still valid, but one of its *other* modes may
+    // have just been hidden - refresh the tab row without changing the mode.
+    buildTabs(state.anim);
     markSidebar();
   }
 }

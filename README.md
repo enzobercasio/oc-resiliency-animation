@@ -34,6 +34,7 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 | Animation | What it shows |
 |---|---|
 | **Multi-replica pods: what `replicas: N` buys you** | The reconciliation loop, the automatic pod recovery it genuinely provides, and the two questions a replica count never answers |
+| **Pod affinity and anti-affinity: who schedules together** | A rule that pulls related pods onto one node, one that holds replicas apart, and a required rule with nowhere left to go |
 | **Voluntary vs involuntary disruption** | Why a drain is admission-checked against the PDB and a node failure simply isn't |
 | **Rolling upgrade: four configurations** | The same six-replica workload drained across three zones with Spread+PDB, spread only, PDB only, and neither |
 | **Graceful shutdown: the ordering race** | Why a pod returns 502s at full replica count without a `preStop` hook |
@@ -47,7 +48,7 @@ Each has 2–4 modes you switch between live, and they are ordered to build on
 each other — start at the top.
 
 The sidebar groups them into **Core** and **Going deeper**, and the **Beginner**
-toggle in the top bar narrows it to the core four — a complete session on its
+toggle in the top bar narrows it to the core five — a complete session on its
 own. An **advanced** pill on a mode tab marks a mode that is dense even for its
 group; beginner mode hides those too.
 

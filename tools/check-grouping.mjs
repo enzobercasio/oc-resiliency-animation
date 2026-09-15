@@ -29,7 +29,7 @@ const deeper = animations.filter((a) => a.advanced);
 check('both groups are populated', core.length > 0 && deeper.length > 0,
   'every animation is in one group - the split conveys nothing');
 check('core stays small enough to be a session', core.length <= 5,
-  `core has ${core.length}; the docs promise a "core four"`);
+  `core has ${core.length}; keep it small enough that the docs' promised "core" stays true`);
 check('registry lists core animations first',
   animations.findIndex((a) => a.advanced) === core.length,
   'sidebar numbering will disagree with the presenting guide');
