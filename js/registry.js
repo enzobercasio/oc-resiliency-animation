@@ -30,7 +30,11 @@
  * after requests-limits as its direct sequel - showing the PriorityClass fix
  * that animation only name-drops, and the gotcha that preemption deletes a
  * pod directly rather than calling the eviction subresource - a third
- * disruption category a PodDisruptionBudget can never see coming.
+ * disruption category a PodDisruptionBudget can never see coming; autoscaling
+ * follows it with the two controllers that rewrite requests-limits' numbers
+ * automatically - HPA changes how many, VPA changes how much, running both
+ * on the same metric fights, and ClusterResourceOverride can rewrite either
+ * one before the scheduler ever sees the pod.
  */
 import multiReplica from './animations/multi-replica.js';
 import podAffinity from './animations/pod-affinity.js';
@@ -44,6 +48,7 @@ import rolloutStrategy from './animations/rollout-strategy.js';
 import statefulSets from './animations/statefulsets.js';
 import requestsLimits from './animations/requests-limits.js';
 import priorityPreemption from './animations/priority-preemption.js';
+import autoscaling from './animations/autoscaling.js';
 import gracefulShutdown from './animations/graceful-shutdown.js';
 
 export const animations = [
@@ -59,6 +64,7 @@ export const animations = [
   // Going deeper - marked advanced, grouped separately in the sidebar.
   requestsLimits,
   priorityPreemption,
+  autoscaling,
   machineConfigPools,
   rolloutStrategy,
   statefulSets,

@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **64–75 minutes** for all thirteen, which is the right length
+Total runtime **69–80 minutes** for all fourteen, which is the right length
 for the concept half of a session before you move to the live cluster demo.
 
 ---
@@ -22,7 +22,8 @@ for the concept half of a session before you move to the live cluster demo.
       rule. An **advanced** pill on a mode tab means that mode is dense even for
       its group — currently the required-rule-with-no-room,
       ScheduleAnyway-proceeds, when-it-never-recovers,
-      preemption-bypasses-the-eviction-API, node-pressure and
+      preemption-bypasses-the-eviction-API,
+      ClusterResourceOverride-rewrites-it, node-pressure and
       drain-with-a-volume modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
       sidebar drops to the core eight and the advanced modes disappear from the
@@ -395,7 +396,48 @@ If the audience already sat through pod disruption budgets, switch to
 
 ---
 
-### 11. MachineConfigPools (5 min)
+### 11. HPA, VPA, and ClusterResourceOverride (6 min)
+
+Open: `#autoscaling/hpa/0`
+
+Two controllers that automate exactly the numbers requests-limits told the
+room to set deliberately, plus an admission webhook that can override both.
+
+Play **HPA: how many**. Land the closing frame:
+
+> "Replica count changed. Every pod kept the exact same request and limit
+> throughout. HPA has no opinion at all about what one pod is allowed to use."
+
+Switch to **VPA: how much** (`2`):
+
+> "The mirror image — and watch the middle frame. VPA cannot change a live
+> pod's resources, so Auto mode evicts it and recreates it with the new
+> numbers. That eviction goes through the normal API, so a PDB can delay it
+> here, unlike the preemption you just saw."
+
+**Ask:** *"Have you run VPA in recommend-only mode on your biggest workload,
+just to see how wrong the current requests actually are?"*
+
+Switch to **Both, on the same metric** (`3`):
+
+> "Kubernetes' own docs say never to do this, and it still happens. VPA's
+> resize lowers the percentage HPA is reading — not because load dropped, but
+> because the denominator just got bigger — so HPA scales in at exactly the
+> wrong moment."
+
+If the audience is past the core set, switch to
+**ClusterResourceOverride rewrites it** (`4`, marked advanced):
+
+> "Declared: limits 1Gi. Applied: limits 2Gi. Nobody touched the Deployment —
+> an admission webhook doubled it before the pod was ever scheduled, and the
+> QoS class changed from Guaranteed to Burstable along with it."
+
+**Ask:** *"Is ClusterResourceOverride enabled anywhere in your fleet — and
+does anyone know which teams' QoS classes it has quietly changed?"*
+
+---
+
+### 12. MachineConfigPools (5 min)
 
 Open: `#machine-config-pools/serial/0`
 
@@ -425,7 +467,7 @@ the most commercially interesting five minutes of the session.
 
 ---
 
-### 12. Rolling update strategy (4 min)
+### 13. Rolling update strategy (4 min)
 
 Open: `#rollout-strategy/surge/0`
 
@@ -453,7 +495,7 @@ well as drains?"* Hands usually go up.
 
 ---
 
-### 13. StatefulSets (6 min)
+### 14. StatefulSets (6 min)
 
 Open: `#statefulsets/identity/0`
 
