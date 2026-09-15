@@ -28,7 +28,7 @@ const deeper = animations.filter((a) => a.advanced);
 
 check('both groups are populated', core.length > 0 && deeper.length > 0,
   'every animation is in one group - the split conveys nothing');
-check('core stays small enough to be a session', core.length <= 5,
+check('core stays small enough to be a session', core.length <= 6,
   `core has ${core.length}; keep it small enough that the docs' promised "core" stays true`);
 check('registry lists core animations first',
   animations.findIndex((a) => a.advanced) === core.length,

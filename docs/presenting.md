@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **46–56 minutes** for all nine, which is the right length for the
+Total runtime **50–60 minutes** for all ten, which is the right length for the
 concept half of a session before you move to the live cluster demo.
 
 ---
@@ -18,12 +18,12 @@ concept half of a session before you move to the live cluster demo.
       render in presentation mode on a single screen — read them beforehand or
       run a second window on your laptop display.
 - [ ] Decide your running order against the sidebar groups. **Core** is the
-      first five and stands alone; **Going deeper** is the rest, separated by a
+      first six and stands alone; **Going deeper** is the rest, separated by a
       rule. An **advanced** pill on a mode tab means that mode is dense even for
-      its group — currently the required-rule-with-no-room, node-pressure and
-      drain-with-a-volume modes.
+      its group — currently the required-rule-with-no-room,
+      ScheduleAnyway-proceeds, node-pressure and drain-with-a-volume modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
-      sidebar drops to the core five and the advanced modes disappear from the
+      sidebar drops to the core six and the advanced modes disappear from the
       tab rows, so there is nothing on screen to get asked about mid-session.
       The setting persists, so check its state before a session with a different
       audience. Your prepared deep links still work either way — opening one
@@ -109,12 +109,46 @@ If the audience is past the core set, switch to **When required has no room**
 
 ---
 
-### 3. Voluntary vs involuntary disruption (4 min)
+### 3. Topology spread constraints (4 min)
+
+Open: `#topology-spread/even/0`
+
+Same hard-versus-soft question as the last animation, one mechanism over — say
+so explicitly, it is the connective tissue of this whole middle stretch.
+
+Play **Even spread**. Land the closing frame:
+
+> "Anti-affinity guaranteed at most one pod per node. This guarantees at most a
+> one-replica gap between zones — looser, and it scales to any replica count
+> without the pairwise comparisons anti-affinity needs."
+
+Switch to **DoNotSchedule blocks** (`2`):
+
+> "Zone c is cordoned, not failed — its two replicas keep running. Scale twice
+> and the third scale-up has no legal zone left at all. Every option pushes the
+> gap to two, and the constraint says no."
+
+Point at the **Skew** metric hitting the limit, then blocking the next scale-up
+entirely.
+
+**Ask:** *"If a zone in your cluster went into maintenance right now, would you
+notice a stuck scale-up before someone paged you about it?"*
+
+If the audience is past the core set, switch to **ScheduleAnyway proceeds**
+(`3`, marked advanced):
+
+> "Same scenario, soft version. It schedules anyway, and skew quietly grows
+> past the number in your YAML. The constraint you wrote is now a preference,
+> not a promise — know which one you meant to write."
+
+---
+
+### 4. Voluntary vs involuntary disruption (4 min)
 
 Open: `#disruption-types/voluntary/0`
 
-This picks up the "how fast can they be taken away" half of the question the
-previous animation ended on.
+This picks up the "how fast can they be taken away" half of the question
+multi-replica ended on — the two placement animations just answered "where."
 
 Play through the voluntary case. The beat to land is frame 4 — the HTTP 429:
 
@@ -133,7 +167,7 @@ right now?"* Let the silence sit.
 
 ---
 
-### 4. Rolling upgrade, four configurations (8 min)
+### 5. Rolling upgrade, four configurations (8 min)
 
 Open: `#upgrade-resiliency/a-none/0`
 
@@ -180,7 +214,7 @@ Play it end to end without commentary, then:
 
 ---
 
-### 5. Graceful shutdown (4 min)
+### 6. Graceful shutdown (4 min)
 
 Open: `#graceful-shutdown/no-prestop/0`
 
@@ -207,7 +241,7 @@ network?"* Someone in the room always has.
 
 ---
 
-### 6. Requests and limits (5 min)
+### 7. Requests and limits (5 min)
 
 Open: `#requests-limits/qos-classes/0`
 
@@ -244,7 +278,7 @@ mode, they are further ahead than most.
 
 ---
 
-### 7. MachineConfigPools (5 min)
+### 8. MachineConfigPools (5 min)
 
 Open: `#machine-config-pools/serial/0`
 
@@ -274,7 +308,7 @@ the most commercially interesting five minutes of the session.
 
 ---
 
-### 8. Rolling update strategy (4 min)
+### 9. Rolling update strategy (4 min)
 
 Open: `#rollout-strategy/surge/0`
 
@@ -302,7 +336,7 @@ well as drains?"* Hands usually go up.
 
 ---
 
-### 9. StatefulSets (6 min)
+### 10. StatefulSets (6 min)
 
 Open: `#statefulsets/identity/0`
 
@@ -379,7 +413,7 @@ four live; the animation already covered the middle ground.
 
 ## Short versions
 
-**The core five (24 min)** — run animations 1 to 5 and stop. They are grouped
+**The core six (28 min)** — run animations 1 to 6 and stop. They are grouped
 under **Core** in the sidebar for exactly this reason, and they are a complete
 session on their own.
 
