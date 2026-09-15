@@ -158,7 +158,18 @@ Play **minAvailable: an absolute floor**. Land the scale-down frame:
 > replicas to five, and disruptionsAllowed went from one to zero — permanently,
 > at this replica count, not for a moment."
 
-Switch to **maxUnavailable: a scaling ceiling** (`2`):
+Switch to **minAvailable = replicas: deadlock** (`2`):
+
+> "This one doesn't need a scale-down or anything to go wrong first. Four
+> replicas, minAvailable: 4 — disruptionsAllowed is zero from the moment this
+> budget exists. Drain a node holding one of these pods and the eviction is
+> refused before anything moves. Not a slow retry that eventually succeeds —
+> it cannot succeed, ever, while all four stay healthy."
+
+**Ask:** *"Grep your PodDisruptionBudgets for minAvailable equal to the
+Deployment's replica count — how many turn up?"*
+
+Switch to **maxUnavailable: a scaling ceiling** (`3`):
 
 > "Same idea, written as a percentage instead. Scale up to ten and
 > disruptionsAllowed recalculates itself to two. Nobody edited this manifest —
@@ -168,7 +179,7 @@ Switch to **maxUnavailable: a scaling ceiling** (`2`):
 that also has an HPA attached?"*
 
 If the audience is past the core set, switch to **When it never recovers**
-(`3`, marked advanced):
+(`4`, marked advanced):
 
 > "Watch the replacement pod — it's Running, it's just never Ready.
 > disruptionsAllowed does not know the difference between 'recovering' and

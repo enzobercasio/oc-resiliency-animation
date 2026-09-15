@@ -4,7 +4,8 @@
  *
  * Sits right after topology-spread, before disruption-types, on purpose: this
  * one covers the budget in isolation - an absolute floor versus a percentage
- * ceiling, and the failure mode neither of those two words admits to, a
+ * ceiling, a floor set equal to the replica count deadlocking a drain from
+ * the moment it exists, and the failure mode none of those three admit to, a
  * replacement that never becomes Ready. disruption-types then assumes this is
  * already understood and spends its whole runtime on voluntary vs
  * involuntary instead of re-deriving what a PDB is.
@@ -17,6 +18,8 @@
 const MODES = [
   { id: 'min-available', label: 'minAvailable: an absolute floor',
     caption: 'disruptionsAllowed is ready replicas minus minAvailable — nothing more' },
+  { id: 'deadlock', label: 'minAvailable = replicas: deadlock',
+    caption: 'Zero headroom by design — a node drain retries forever and never succeeds' },
   { id: 'max-unavailable', label: 'maxUnavailable: a scaling ceiling',
     caption: 'A percentage recalculates automatically on every scale event' },
   { id: 'stuck', label: 'When it never recovers', advanced: true,
@@ -54,6 +57,31 @@ function buildFrames(modeId) {
       thresholdLabel: 'minAvailable: 5',
       note: 'Every drain from here blocks until you scale back up or edit the budget',
       badge: 'A budget written for one replica count can silently stop protecting anything after the next scale-down' });
+  }
+
+  if (modeId === 'deadlock') {
+    push({ pods: ['r', 'r', 'r', 'r'], ready: 4, total: 4, allowed: 0,
+      thresholdLabel: 'minAvailable: 4',
+      note: 'replicas: 4, minAvailable: 4 — "zero downtime," by one reading of the docs',
+      focus: ['minAvailable: 4'],
+      badge: 'disruptionsAllowed is 4 minus 4. It was never going to be anything but 0' });
+    push({ pods: ['r', 'r', 'r', 'r'], ready: 4, total: 4, allowed: 0,
+      thresholdLabel: 'minAvailable: 4',
+      note: 'A node holding one of these replicas needs to drain for maintenance',
+      badge: 'oc adm drain calls the eviction API exactly like any other voluntary disruption' });
+    push({ pods: ['r', 'r', 'r', 'r'], ready: 4, total: 4, allowed: 0,
+      thresholdLabel: 'minAvailable: 4',
+      note: 'The eviction request is refused before the pod moves at all',
+      focus: ['minAvailable: 4'],
+      badge: 'HTTP 429 — not a retry that eventually succeeds. The budget cannot grant this, ever' });
+    push({ pods: ['r', 'r', 'r', 'r'], ready: 4, total: 4, allowed: 0,
+      thresholdLabel: 'minAvailable: 4',
+      note: 'The drain retries in a loop, forever, and never proceeds',
+      badge: 'Nothing changes disruptionsAllowed while all four stay Ready — and the one request that would is the one being refused' });
+    push({ pods: ['r', 'r', 'r', 'r'], ready: 4, total: 4, allowed: 0,
+      thresholdLabel: 'minAvailable: 4',
+      note: 'This is why minAvailable should never equal the replica count',
+      badge: 'Written to protect every replica, it ends up protecting none of them from ever being drained — write minAvailable: 3 instead' });
   }
 
   if (modeId === 'max-unavailable') {
@@ -151,6 +179,11 @@ const NOTES = {
     { heading: 'Line that lands', text: 'minAvailable is correct for the replica count you wrote it for, and silently wrong the moment you scale without revisiting it.' },
     { ask: 'Do any of your PodDisruptionBudgets use an absolute minAvailable on a Deployment that also has an HPA?' },
   ],
+  deadlock: [
+    { heading: 'What to point at', text: 'Frame 1. Nothing has scaled and nothing is unhealthy yet — the deadlock exists the instant this manifest is applied.' },
+    { heading: 'Line that lands', text: 'minAvailable: 4 on 4 replicas is not a stricter version of minAvailable: 3 — it is a different thing entirely. It removes the budget’s only degree of freedom.' },
+    { ask: 'Grep your PodDisruptionBudgets for minAvailable equal to the Deployment’s replica count — how many do you find?' },
+  ],
   'max-unavailable': [
     { heading: 'What to point at', text: 'disruptionsAllowed recalculating from 1 to 2 with zero edits to the PDB, purely because the Deployment scaled.' },
     { heading: 'Line that lands', text: 'A percentage is not a nicer syntax for the same idea — it is the version that stays correct after a scaling event the PDB author never saw coming.' },
@@ -177,6 +210,21 @@ spec:
 # disruptionsAllowed = ready replicas - minAvailable
 # minAvailable is an absolute number - it does not
 # move when you scale the Deployment.
+`,
+  deadlock: `apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payments-api-pdb
+spec:
+  minAvailable: 4
+  selector:
+    matchLabels:
+      app: payments-api
+
+# replicas: 4, minAvailable: 4 - disruptionsAllowed
+# is 4 - 4 = 0 from the moment this budget exists.
+# A drain touching any of these replicas retries
+# the eviction forever and never succeeds.
 `,
   'max-unavailable': `apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -217,6 +265,14 @@ const FEATURES = {
     { name: 'status.disruptionsAllowed', kind: 'PDB status',
       what: 'Live headroom, recomputed as ready count minus the floor. Zero means every voluntary eviction blocks, not just the next one.' },
   ],
+  deadlock: [
+    { name: 'minAvailable', kind: 'PDB spec',
+      what: 'Set equal to the replica count, this does not protect the last replica — it removes the budget’s only degree of freedom, so disruptionsAllowed is permanently 0.' },
+    { name: 'Eviction API', kind: 'pods/eviction',
+      what: 'Every request against this budget returns 429, forever. The retry loop that normally makes a drain slow and safe here just makes it never.' },
+    { name: 'oc adm drain', kind: 'command',
+      what: 'Has no default timeout on eviction retries — a permanently-zero budget means the command hangs indefinitely instead of failing loudly.' },
+  ],
   'max-unavailable': [
     { name: 'maxUnavailable', kind: 'PDB spec',
       what: 'A percentage ceiling. Recalculates automatically on every scale event, so the same manifest keeps the same relative headroom at 5 replicas or 500.' },
@@ -239,7 +295,7 @@ export default {
   id: 'pod-disruption-budget',
   title: 'Pod disruption budgets: minAvailable, maxUnavailable, and getting stuck',
   summary: 'The rate limiter for voluntary disruption — an absolute floor or a percentage ceiling, and what happens when disruptionsAllowed never recovers.',
-  description: 'A PodDisruptionBudget’s disruptionsAllowed counter tracked across a scale-down, a scale-up under a percentage rule, and a replacement pod that never becomes Ready.',
+  description: 'A PodDisruptionBudget’s disruptionsAllowed counter tracked across a scale-down, a floor set equal to the replica count that deadlocks a node drain, a scale-up under a percentage rule, and a replacement pod that never becomes Ready.',
   viewBox: '0 0 680 300',
   modes: MODES,
   buildFrames,
