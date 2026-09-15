@@ -39,6 +39,7 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 | **Pod disruption budgets: minAvailable, maxUnavailable, and getting stuck** | An absolute floor vs a percentage ceiling, a floor that deadlocks a drain by design, and a replacement pod that never becomes Ready |
 | **Voluntary vs involuntary disruption** | Why a drain is admission-checked against the PDB and a node failure simply isn't |
 | **Rolling upgrade: four configurations** | The same six-replica workload drained across three zones with Spread+PDB, spread only, PDB only, and neither |
+| **Startup, readiness, and liveness probes: three different questions** | Readiness gates traffic, liveness restarts a hung container, and a slow starter crash-loops without a startupProbe |
 | **Graceful shutdown: the ordering race** | Why a pod returns 502s at full replica count without a `preStop` hook |
 | *Going deeper* | |
 | **Requests and limits: reservation vs ceiling** | QoS classes, kubelet eviction order under node pressure, and why a drained pod can fail to fit |
@@ -50,7 +51,7 @@ Each has 2–4 modes you switch between live, and they are ordered to build on
 each other — start at the top.
 
 The sidebar groups them into **Core** and **Going deeper**, and the **Beginner**
-toggle in the top bar narrows it to the core seven — a complete session on its
+toggle in the top bar narrows it to the core eight — a complete session on its
 own. An **advanced** pill on a mode tab marks a mode that is dense even for its
 group; beginner mode hides those too.
 

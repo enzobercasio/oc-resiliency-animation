@@ -17,11 +17,16 @@
  * that never becomes Ready - so disruption-types can assume it and spend its
  * whole runtime on voluntary vs involuntary instead of re-deriving what a PDB
  * is; disruption-types answers "how fast can they be taken away";
- * upgrade-resiliency puts placement and drain rate together;
- * machine-config-pools zooms out to the cluster-level control that sets the
- * shape of the whole upgrade; rollout-strategy covers the separate case of a
- * Deployment replacing its own pods; graceful-shutdown is the coda about
- * in-flight requests, which is orthogonal to all of it.
+ * upgrade-resiliency puts placement and drain rate together; probes then
+ * shifts from "how many replicas survive" to "what does this one pod's own
+ * state even mean" - readiness gating traffic, liveness triggering a
+ * restart, and startupProbe separating a slow boot from a crash loop -
+ * which graceful-shutdown assumes when it narrows to the one probe that
+ * matters during termination; machine-config-pools zooms out to the
+ * cluster-level control that sets the shape of the whole upgrade;
+ * rollout-strategy covers the separate case of a Deployment replacing its
+ * own pods; graceful-shutdown is the coda about in-flight requests, which is
+ * orthogonal to all of it.
  */
 import multiReplica from './animations/multi-replica.js';
 import podAffinity from './animations/pod-affinity.js';
@@ -29,6 +34,7 @@ import topologySpread from './animations/topology-spread.js';
 import podDisruptionBudget from './animations/pod-disruption-budget.js';
 import disruptionTypes from './animations/disruption-types.js';
 import upgradeResiliency from './animations/upgrade-resiliency.js';
+import probes from './animations/probes.js';
 import machineConfigPools from './animations/machine-config-pools.js';
 import rolloutStrategy from './animations/rollout-strategy.js';
 import statefulSets from './animations/statefulsets.js';
@@ -43,6 +49,7 @@ export const animations = [
   podDisruptionBudget,
   disruptionTypes,
   upgradeResiliency,
+  probes,
   gracefulShutdown,
   // Going deeper - marked advanced, grouped separately in the sidebar.
   requestsLimits,

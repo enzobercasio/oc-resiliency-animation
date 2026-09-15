@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **55–65 minutes** for all eleven, which is the right length for
+Total runtime **60–70 minutes** for all twelve, which is the right length for
 the concept half of a session before you move to the live cluster demo.
 
 ---
@@ -18,13 +18,13 @@ the concept half of a session before you move to the live cluster demo.
       render in presentation mode on a single screen — read them beforehand or
       run a second window on your laptop display.
 - [ ] Decide your running order against the sidebar groups. **Core** is the
-      first seven and stands alone; **Going deeper** is the rest, separated by a
+      first eight and stands alone; **Going deeper** is the rest, separated by a
       rule. An **advanced** pill on a mode tab means that mode is dense even for
       its group — currently the required-rule-with-no-room,
       ScheduleAnyway-proceeds, when-it-never-recovers, node-pressure and
       drain-with-a-volume modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
-      sidebar drops to the core seven and the advanced modes disappear from the
+      sidebar drops to the core eight and the advanced modes disappear from the
       tab rows, so there is nothing on screen to get asked about mid-session.
       The setting persists, so check its state before a session with a different
       audience. Your prepared deep links still work either way — opening one
@@ -261,12 +261,48 @@ Play it end to end without commentary, then:
 
 ---
 
-### 7. Graceful shutdown (4 min)
+### 7. Startup, readiness, and liveness probes (5 min)
+
+Open: `#probes/readiness/0`
+
+Everything so far has been about how many replicas survive. This is the pivot
+to what a single pod's own state even means — the last piece before graceful
+shutdown, which assumes it.
+
+Play **Readiness gates traffic**. Land the removed-from-endpoints frame:
+
+> "The pod never stops running. It just stops receiving traffic. That is
+> readiness doing exactly its job, not a problem being reported."
+
+Switch to **Liveness triggers a restart** (`2`):
+
+> "Same three probes, same shape — but watch what happens this time. The
+> container gets killed and replaced. Liveness is the only one of the three
+> that can do that."
+
+**Ask:** *"Does your livenessProbe check anything a downstream dependency
+could make fail — and is that actually what you want restarting?"*
+
+Switch to **A slow starter without startupProbe** (`3`):
+
+> "This app needs ninety seconds. The liveness probe gives it thirty before
+> killing it — and the countdown resets every time. This is CrashLoopBackOff
+> with a perfectly healthy application inside it."
+
+Then **startupProbe buys it time** (`4`) and land the fix:
+
+> "One block of YAML. Readiness and liveness simply do not run until startup
+> succeeds once. Same app, same livenessProbe, zero crash loops."
+
+---
+
+### 8. Graceful shutdown (4 min)
 
 Open: `#graceful-shutdown/no-prestop/0`
 
-This closes the core set. Everything so far has been about how many replicas and
-where; this is the one that is about a single request.
+This closes the core set. Everything so far has been about how many replicas
+survive, where they land, and what state one of them is in; this is the one
+that is about a single request.
 
 > "This one has nothing to do with replica counts. We're at six of six the entire
 > time and users are still getting 502s."
@@ -288,7 +324,7 @@ network?"* Someone in the room always has.
 
 ---
 
-### 8. Requests and limits (5 min)
+### 9. Requests and limits (5 min)
 
 Open: `#requests-limits/qos-classes/0`
 
@@ -325,7 +361,7 @@ mode, they are further ahead than most.
 
 ---
 
-### 9. MachineConfigPools (5 min)
+### 10. MachineConfigPools (5 min)
 
 Open: `#machine-config-pools/serial/0`
 
@@ -355,7 +391,7 @@ the most commercially interesting five minutes of the session.
 
 ---
 
-### 10. Rolling update strategy (4 min)
+### 11. Rolling update strategy (4 min)
 
 Open: `#rollout-strategy/surge/0`
 
@@ -383,7 +419,7 @@ well as drains?"* Hands usually go up.
 
 ---
 
-### 11. StatefulSets (6 min)
+### 12. StatefulSets (6 min)
 
 Open: `#statefulsets/identity/0`
 
@@ -460,7 +496,7 @@ four live; the animation already covered the middle ground.
 
 ## Short versions
 
-**The core seven (33 min)** — run animations 1 to 7 and stop. They are grouped
+**The core eight (38 min)** — run animations 1 to 8 and stop. They are grouped
 under **Core** in the sidebar for exactly this reason, and they are a complete
 session on their own.
 
