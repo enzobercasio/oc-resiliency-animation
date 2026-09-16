@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bare-Metal Capacity Math</title>
-<meta name="description" content="The arithmetic behind maxUnavailable on bare-metal RHOCP: four refinements to the naive capacity formula, a worked example, and the correction to the HPA argument.">
+<meta name="description" content="The arithmetic behind maxUnavailable on bare-metal RHOCP: the formula, a worked example, how to pull the real numbers, and the HPA bullet.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root {
@@ -106,8 +106,6 @@
     font-weight: 500;
   }
   h1 { font-size: 2.15rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.12; }
-  .dek { font-size: 1.1rem; color: var(--ink-2); max-width: 62ch; }
-  .dek strong { color: var(--ink); font-weight: 600; }
 
   /* ---------- formula thesis panel ---------- */
   .formula-panel {
@@ -144,28 +142,6 @@
   p { margin: 0; max-width: 68ch; }
   p + p { margin-top: 12px; }
 
-  /* ---------- refinements ---------- */
-  .refinements { display: flex; flex-direction: column; gap: 26px; }
-  .refinement {
-    display: grid;
-    grid-template-columns: 44px 1fr;
-    gap: 4px 16px;
-    padding-left: 16px;
-    border-left: 2px solid var(--rule-strong);
-  }
-  .refinement .mark {
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--accent);
-    padding-top: 2px;
-  }
-  .refinement h3 { font-size: 1.05rem; font-weight: 600; grid-column: 2; }
-  .refinement .mark { grid-column: 1; grid-row: 1; }
-  .refinement h3 { grid-row: 1; }
-  .refinement p { grid-column: 2; color: var(--ink-2); font-size: 0.96rem; }
-  .refinement strong { color: var(--ink); font-weight: 600; }
-
   /* ---------- worked example table ---------- */
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 420px; }
@@ -186,7 +162,6 @@
   tr.hero td:first-child { border-radius: 6px 0 0 6px; padding-left: 12px; }
   tr.hero td:last-child { border-radius: 0 6px 6px 0; }
   tr.hero td.num { color: var(--ink); }
-  .row-note { color: var(--ink-3); font-size: 0.86rem; font-weight: 400; }
 
   /* ---------- trade meter chart ---------- */
   .meter-block { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 22px 24px 20px; box-shadow: var(--shadow); }
@@ -258,20 +233,11 @@
   .consequences { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
   .consequence { display: grid; grid-template-columns: 20px 1fr; gap: 10px; font-size: 0.95rem; }
   .consequence .n { font-family: "IBM Plex Mono", monospace; color: color-mix(in srgb, var(--warn) 55%, var(--ink) 45%); font-weight: 700; }
-  .reframe {
-    margin-top: 6px;
-    padding-top: 16px;
-    border-top: 1px solid color-mix(in srgb, var(--warn) 35%, var(--rule-strong));
-    font-size: 1rem;
-  }
-  .reframe .was { color: var(--ink-3); text-decoration: line-through; }
-  .reframe .now { color: var(--ink); font-weight: 600; }
 
   footer { color: var(--ink-3); font-size: 0.85rem; border-top: 1px solid var(--rule); padding-top: 20px; }
 
   @media (max-width: 560px) {
     h1 { font-size: 1.7rem; }
-    .refinement { grid-template-columns: 32px 1fr; }
     .formula-lines { white-space: pre-wrap; font-size: 12px; line-height: 1.7; }
     .meter-row { grid-template-columns: 1fr; gap: 6px; }
     .meter-track { margin-top: 20px; }
@@ -288,8 +254,7 @@
 
   <header>
     <div class="eyebrow">Capacity planning — review note</div>
-    <h1>The arithmetic behind maxUnavailable, corrected</h1>
-    <p class="dek">Your three bullets are directionally right, but four refinements change the answer materially in practice — and one of them makes <strong>the HPA bullet wrong as written</strong>.</p>
+    <h1>The arithmetic behind maxUnavailable</h1>
   </header>
 
   <div class="formula-panel">
@@ -302,34 +267,6 @@
 
 <span class="lhs">Utilisation</span> <span class="op">=</span> Required / Available     <span class="op">→</span> target ≤ <span class="target">0.85</span></div>
   </div>
-
-  <section>
-    <h2>Four refinements</h2>
-    <p class="section-dek">Each one moves the estimate in a specific, predictable direction — usually toward more risk than the naive sum suggests.</p>
-
-    <div class="refinements">
-      <div class="refinement">
-        <div class="mark">§1</div>
-        <h3>Allocatable, not capacity</h3>
-        <p>A 64&nbsp;GiB node does not offer 64&nbsp;GiB. Subtract <code>systemReserved</code>, <code>kubeReserved</code>, and the hard eviction threshold — typically <strong>4–8&nbsp;GiB and 1–2 cores</strong> on a bare-metal worker. If the customer never set <code>KubeletConfig</code> reservations, allocatable is optimistically high and the whole calculation is wrong in the dangerous direction.</p>
-      </div>
-      <div class="refinement">
-        <div class="mark">§2</div>
-        <h3>DaemonSets don't reschedule</h3>
-        <p>Node exporter, OVN, CSI drivers, ACS collector, logging — they already run on every surviving node and consume allocatable there. So they come off the <strong>available</strong> side, not the required side. Counting them as pods needing a new home double-counts them, often by <strong>3–5&nbsp;GiB per node</strong>.</p>
-      </div>
-      <div class="refinement">
-        <div class="mark">§3</div>
-        <h3>Remove the largest nodes, not average ones</h3>
-        <p>Bare-metal pools are rarely homogeneous. Worst case is losing your biggest node, so size against that.</p>
-      </div>
-      <div class="refinement">
-        <div class="mark">§4</div>
-        <h3>Bin packing, not just totals</h3>
-        <p>Passing the sum test doesn't mean every pod fits. A single 24&nbsp;GiB JVM needs <em>one</em> node with 24&nbsp;GiB free, which five nodes with 20&nbsp;GiB free each cannot provide. Check the largest single pod against the largest single node's remaining allocatable separately.</p>
-      </div>
-    </div>
-  </section>
 
   <section>
     <h2>Worked example</h2>
@@ -347,7 +284,7 @@
           <tr class="subtotal"><td>Allocatable per node</td><td class="num">57 GiB</td></tr>
           <tr><td>Less DaemonSet requests</td><td class="num">−5 GiB</td></tr>
           <tr class="subtotal"><td>Available to workloads per node</td><td class="num">52 GiB</td></tr>
-          <tr><td>Pool of 6, minus 1 draining <span class="row-note">(§3)</span></td><td class="num">5 × 52 = 260 GiB</td></tr>
+          <tr><td>Pool of 6, minus 1 draining</td><td class="num">5 × 52 = 260 GiB</td></tr>
           <tr><td>Sum of workload requests</td><td class="num">220 GiB</td></tr>
           <tr class="hero"><td>Utilisation during a roll</td><td class="num">85%</td></tr>
         </tbody>
@@ -422,19 +359,13 @@
 
   <section>
     <div class="correction">
-      <div class="tag">Correction — the HPA bullet</div>
+      <div class="tag">The HPA bullet</div>
       <h3>HPA doesn't just help — it inflates Required</h3>
       <p>The capacity check has to be done at <strong>maxReplicas</strong>, not at current replica count. A pool that sits at 70% today can be at 115% during a peak that coincides with the maintenance window.</p>
 
       <div class="consequences">
         <div class="consequence"><span class="n">1</span><span>Size headroom against <strong>HPA maxima</strong> for anything customer-facing — not against whatever happens to be running right now.</span></div>
         <div class="consequence"><span class="n">2</span><span>Keep <strong>minReplicas</strong> at or above the PDB floor, so scale-down can never leave a workload unable to tolerate an eviction.</span></div>
-      </div>
-
-      <div class="reframe">
-        <p><span class="was">It isn't that a drain removes a smaller share of capacity —</span><br>
-        <span class="now">it's that with more replicas running, losing one replica is a smaller fraction of serving capacity, so the user-visible impact is smaller.</span></p>
-        <p style="margin-top: 10px; color: var(--ink-2); font-size: 0.92rem;">Different mechanism, better argument.</p>
       </div>
     </div>
   </section>
