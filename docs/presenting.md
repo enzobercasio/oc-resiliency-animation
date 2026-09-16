@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **74–86 minutes** for all fifteen, which is the right length
+Total runtime **79–91 minutes** for all sixteen, which is the right length
 for the concept half of a session before you move to the live cluster demo.
 
 ---
@@ -24,7 +24,7 @@ for the concept half of a session before you move to the live cluster demo.
       ScheduleAnyway-proceeds, when-it-never-recovers,
       preemption-bypasses-the-eviction-API,
       ClusterResourceOverride-rewrites-it, a-degraded-operator-blocks-everything,
-      node-pressure and drain-with-a-volume modes.
+      reclaimPolicy-Retain, node-pressure and drain-with-a-volume modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
       sidebar drops to the core eight and the advanced modes disappear from the
       tab rows, so there is nothing on screen to get asked about mid-session.
@@ -534,7 +534,46 @@ instinct of "one at a time is fine" can lose the cluster instead of degrading it
 
 ---
 
-### 15. RHOCP upgrade flow (6 min)
+### 15. PersistentVolumeClaims and PersistentVolumes (5 min)
+
+Open: `#pvc-pv/dynamic-provisioning/0`
+
+The direct sequel to StatefulSets: that animation showed a claim outliving
+its pod. This is how the claim became a volume in the first place.
+
+Play **Dynamic provisioning**. Land the closing frame:
+
+> "The PV didn't exist until the PVC asked for it. That's the whole trick —
+> a StorageClass just means something is listening for requests like this
+> one and creating a volume to match."
+
+Switch to **Immediate can strand a zone** (`2`):
+
+> "Watch the order: the volume binds to zone a before any pod exists. Two
+> frames later, spread puts the pod in zone b, and a block volume cannot
+> follow it there. This is the same zone problem from topology-spread —
+> solved for compute, and reintroduced here for storage."
+
+**Ask:** *"Have you seen a pod stuck Pending with a storage-affinity reason
+and gone looking for a compute problem instead?"*
+
+Switch to **reclaimPolicy: Delete** (`3`):
+
+> "Same claim, same deletion — but the PV and the actual storage volume go
+> with it. Not released, not detached. Destroyed. This is the default for
+> almost every dynamic StorageClass you have."
+
+If the audience is past the core set, switch to **reclaimPolicy: Retain**
+(`4`, marked advanced):
+
+> "Identical deletion, one field different. The PV survives as Released —
+> not Bound, not Available, just sitting there with the data intact until
+> someone clears its claimRef by hand. Retain doesn't make this safer, it
+> just trades an automatic disaster for a manual chore."
+
+---
+
+### 16. RHOCP upgrade flow (6 min)
 
 Open: `#cluster-upgrade-flow/orchestration/0`
 
