@@ -595,10 +595,11 @@ Switch to **Control plane before workers** (`2`):
 
 Let it keep playing past the control plane. Land the moment the worker row appears:
 
-> "Same maxUnavailable field the master pool has, and it finally does
-> something — two workers cordon and reboot together. The control plane paid
-> for safety one node at a time. Workers spend their own budget two at a
-> time. Same upgrade, two different rules."
+> "Six nodes this time, same maxUnavailable: 2 — and it finally does
+> something. Watch it work through three waves of two: zero and one, then
+> two and three, then four and five. The control plane paid for safety one
+> node at a time. Workers spend their own budget two at a time, three times
+> over. Same upgrade, two different rules."
 
 **Ask:** *"Do you know how long your control plane spends in this
 one-at-a-time phase before worker pools even get to use their own

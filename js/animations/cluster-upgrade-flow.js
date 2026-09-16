@@ -19,9 +19,9 @@
  *     note, badge, focus }
  *
  * `control-plane-first` runs both rows: masters serialise on etcd quorum,
- * then workers appear and move under their own maxUnavailable - the pool
- * machine-config-pools.js covers in depth, shown here just long enough to
- * land the contrast with the row above it.
+ * then a six-node worker pool appears and moves two at a time, three waves
+ * back to back - the pool machine-config-pools.js covers in depth, shown
+ * here just long enough to land the contrast with the row above it.
  */
 
 const MODES = [
@@ -113,27 +113,46 @@ function buildFrames(modeId) {
     push({ kind: 'nodes', nodes: N('ready', 'ready', 'cordoned'), quorum: '3 / 3',
       note: 'master-1 finishes the same way. master-2 starts last',
       badge: 'Same rule, same reason, every single time' });
+    const wave = (state, ...idx) => {
+      const w = ['ready', 'ready', 'ready', 'ready', 'ready', 'ready'];
+      idx.forEach((i) => { w[i] = state; });
+      return w;
+    };
+    const wReady = wave('ready');
+
     push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
-      workers: ['ready', 'ready', 'ready'],
-      note: 'All three control plane nodes are on the new version — worker pools start now',
+      workers: wReady,
+      note: 'All three control plane nodes are on the new version — the six-node worker pool starts now',
       badge: 'This worker pool has maxUnavailable: 2 — nothing here is limited to one at a time' });
     push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
-      workers: ['cordoned', 'cordoned', 'ready'],
+      workers: wave('cordoned', 0, 1),
       note: 'worker-0 and worker-1 cordon and drain together',
       focus: ['maxUnavailable: 2'],
       badge: 'Two at once — the concurrency the control plane never gets' });
     push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
-      workers: ['rebooting', 'rebooting', 'ready'],
+      workers: wave('rebooting', 0, 1),
       note: 'Both reboot into the new version at the same time',
       badge: 'Nothing here is protecting a quorum — workers only ever pay for what maxUnavailable actually costs' });
     push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
-      workers: ['ready', 'ready', 'cordoned'],
-      note: 'Both rejoin. worker-2 finishes alone',
-      badge: 'Only one node was left, so only one goes — maxUnavailable is a ceiling, not a target' });
+      workers: wave('cordoned', 2, 3),
+      note: 'worker-0 and worker-1 are back. worker-2 and worker-3 go next',
+      badge: 'The same ceiling applies to every wave — never more than two down at once, however many nodes are in the pool' });
     push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
-      workers: ['ready', 'ready', 'ready'],
-      note: 'All six nodes are on the new version',
-      badge: 'The control plane paid for safety one node at a time. Workers spent their own budget two at a time — same upgrade, two different rules' });
+      workers: wave('rebooting', 2, 3),
+      note: 'Second pair reboots',
+      badge: 'Three waves of two to cover six nodes — the pool did the arithmetic, nobody had to run it by hand' });
+    push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
+      workers: wave('cordoned', 4, 5),
+      note: 'worker-2 and worker-3 rejoin. The last pair starts',
+      badge: 'Same rule, third time — maxUnavailable is a ceiling, not a target, so a smaller final pair still moves together' });
+    push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
+      workers: wave('rebooting', 4, 5),
+      note: 'worker-4 and worker-5 reboot — the last wave',
+      badge: 'This is the whole pool now, not just the two example nodes from earlier animations' });
+    push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
+      workers: wReady,
+      note: 'All nine nodes are on the new version',
+      badge: 'The control plane paid for safety one node at a time. Workers spent their own budget two at a time, three times over — same upgrade, two different rules' });
   }
 
   return f;
@@ -149,6 +168,8 @@ const CO_X = [20, 150, 280, 410, 540];
 const CO_W = 120;
 const NODE_X = [40, 260, 480];
 const NODE_W = 190;
+const WORKER_X = [40, 142, 244, 346, 448, 550];
+const WORKER_W = 92;
 
 function renderSVG(frame) {
   let out = '';
@@ -175,9 +196,9 @@ function renderSVG(frame) {
     out += '<text class="legend-text" x="40" y="168">workers · maxUnavailable: 2</text>';
     frame.workers.forEach((st, n) => {
       const cls = st === 'ready' ? 'node-rect' : `node-rect ${st}`;
-      out += `<rect class="${cls}" x="${NODE_X[n]}" y="184" width="${NODE_W}" height="112" rx="12"/>`;
-      out += `<text class="svg-title on-node" x="${NODE_X[n] + NODE_W / 2}" y="206" text-anchor="middle" dominant-baseline="central">worker-${n}</text>`;
-      out += `<text class="svg-sub on-node" x="${NODE_X[n] + NODE_W / 2}" y="224" text-anchor="middle" dominant-baseline="central">${st}</text>`;
+      out += `<rect class="${cls}" x="${WORKER_X[n]}" y="184" width="${WORKER_W}" height="112" rx="10"/>`;
+      out += `<text class="svg-title on-node" x="${WORKER_X[n] + WORKER_W / 2}" y="206" text-anchor="middle" dominant-baseline="central">worker-${n}</text>`;
+      out += `<text class="svg-sub on-node" x="${WORKER_X[n] + WORKER_W / 2}" y="224" text-anchor="middle" dominant-baseline="central">${st}</text>`;
     });
   }
 
@@ -203,7 +224,7 @@ function metrics(frame) {
   ];
   if (frame.workers) {
     const workersReady = frame.workers.filter((w) => w === 'ready').length;
-    metricsOut.push({ label: 'Workers ready', value: `${workersReady} / 3`, tone: workersReady === 3 ? 'ok' : 'warn' });
+    metricsOut.push({ label: 'Workers ready', value: `${workersReady} / 6`, tone: workersReady === 6 ? 'ok' : 'warn' });
   }
   return metricsOut;
 }
@@ -216,7 +237,7 @@ const NOTES = {
   ],
   'control-plane-first': [
     { heading: 'What to point at', text: 'Quorum sitting at 2 of 3 for the entire window a master is down — that number is the whole reason this is one at a time.' },
-    { heading: 'The payoff', text: 'Watch the row that appears the moment the control plane clears: the exact same maxUnavailable field the masters had all along finally does something, and two workers go down together.' },
+    { heading: 'The payoff', text: 'Watch the row that appears the moment the control plane clears: the exact same maxUnavailable field the masters had all along finally does something, moving six workers in three waves of two instead of one node at a time.' },
     { ask: 'Do you know how long your control plane spends in its one-at-a-time phase before worker pools even get to use their own concurrency?' },
   ],
   'degraded-blocks': [
@@ -319,7 +340,7 @@ export default {
   advanced: true,
   title: 'RHOCP upgrade flow: CVO, ClusterOperators, and the control plane',
   summary: 'What oc adm upgrade actually orchestrates above every other animation in this set: a graph of ClusterOperators, a control plane that always goes one node at a time, and the one failure mode that freezes all of it.',
-  description: 'The Cluster Version Operator updating ClusterOperators through a dependency graph, three control-plane nodes updating one at a time to protect etcd quorum before three workers move two at a time behind them, and a Degraded ClusterOperator halting the entire upgrade.',
+  description: 'The Cluster Version Operator updating ClusterOperators through a dependency graph, three control-plane nodes updating one at a time to protect etcd quorum before a six-node worker pool moves two at a time in three waves, and a Degraded ClusterOperator halting the entire upgrade.',
   viewBox: '0 0 680 350',
   modes: MODES,
   buildFrames,
