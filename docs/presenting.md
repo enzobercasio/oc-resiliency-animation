@@ -593,8 +593,16 @@ Switch to **Control plane before workers** (`2`):
 > concurrency limit, a hard sequence, because quorum only survives losing one.
 > Worker pools don't even start until this finishes."
 
+Let it keep playing past the control plane. Land the moment the worker row appears:
+
+> "Same maxUnavailable field the master pool has, and it finally does
+> something — two workers cordon and reboot together. The control plane paid
+> for safety one node at a time. Workers spend their own budget two at a
+> time. Same upgrade, two different rules."
+
 **Ask:** *"Do you know how long your control plane spends in this
-one-at-a-time phase before worker pools even begin?"*
+one-at-a-time phase before worker pools even get to use their own
+concurrency?"*
 
 If the audience is past the core set, switch to
 **A degraded operator blocks everything** (`3`, marked advanced):

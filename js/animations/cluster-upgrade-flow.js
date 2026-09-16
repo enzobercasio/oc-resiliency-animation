@@ -14,15 +14,21 @@
  * Two frame shapes, switched on `kind`:
  *   { kind: 'cluster', cvoCls, cvoSub,
  *     cos: [{ id, cls, sub }], note, badge, focus }
- *   { kind: 'nodes', nodes: [{ id, status, cls }], quorum,
+ *   { kind: 'nodes', nodes: ['ready'|'cordoned'|'rebooting', ...], quorum,
+ *     workers: ['ready'|'cordoned'|'rebooting', ...] | undefined,
  *     note, badge, focus }
+ *
+ * `control-plane-first` runs both rows: masters serialise on etcd quorum,
+ * then workers appear and move under their own maxUnavailable - the pool
+ * machine-config-pools.js covers in depth, shown here just long enough to
+ * land the contrast with the row above it.
  */
 
 const MODES = [
   { id: 'orchestration', label: 'CVO orchestrates the graph',
     caption: 'The Cluster Version Operator updates ClusterOperators in dependency order, not all at once' },
   { id: 'control-plane-first', label: 'Control plane before workers',
-    caption: 'Master nodes update one at a time to protect etcd quorum, before any worker pool starts' },
+    caption: 'Masters serialise on etcd quorum, then workers move two at a time right behind them' },
   { id: 'degraded-blocks', label: 'A degraded operator blocks everything', advanced: true,
     caption: 'CVO will not move the version forward while any ClusterOperator reports Degraded' },
 ];
@@ -90,6 +96,7 @@ function buildFrames(modeId) {
 
   if (modeId === 'control-plane-first') {
     const N = (m0, m1, m2) => ['ready', 'ready', 'ready'].map((s, i) => [s, m0, m1, m2][i] || s);
+    const DONE = N();
     push({ kind: 'nodes', nodes: N(), quorum: '3 / 3',
       note: 'Three control plane nodes, three etcd voting members',
       badge: 'Losing one still keeps quorum (2 of 3). Losing two does not — that never changes, upgrade or not' });
@@ -106,9 +113,27 @@ function buildFrames(modeId) {
     push({ kind: 'nodes', nodes: N('ready', 'ready', 'cordoned'), quorum: '3 / 3',
       note: 'master-1 finishes the same way. master-2 starts last',
       badge: 'Same rule, same reason, every single time' });
-    push({ kind: 'nodes', nodes: N('ready', 'ready', 'ready'), quorum: '3 / 3',
-      note: 'All three control plane nodes are on the new version',
-      badge: 'Only now do worker pools begin — using the maxUnavailable you already configured per MachineConfigPool' });
+    push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
+      workers: ['ready', 'ready', 'ready'],
+      note: 'All three control plane nodes are on the new version — worker pools start now',
+      badge: 'This worker pool has maxUnavailable: 2 — nothing here is limited to one at a time' });
+    push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
+      workers: ['cordoned', 'cordoned', 'ready'],
+      note: 'worker-0 and worker-1 cordon and drain together',
+      focus: ['maxUnavailable: 2'],
+      badge: 'Two at once — the concurrency the control plane never gets' });
+    push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
+      workers: ['rebooting', 'rebooting', 'ready'],
+      note: 'Both reboot into the new version at the same time',
+      badge: 'Nothing here is protecting a quorum — workers only ever pay for what maxUnavailable actually costs' });
+    push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
+      workers: ['ready', 'ready', 'cordoned'],
+      note: 'Both rejoin. worker-2 finishes alone',
+      badge: 'Only one node was left, so only one goes — maxUnavailable is a ceiling, not a target' });
+    push({ kind: 'nodes', nodes: DONE, quorum: '3 / 3',
+      workers: ['ready', 'ready', 'ready'],
+      note: 'All six nodes are on the new version',
+      badge: 'The control plane paid for safety one node at a time. Workers spent their own budget two at a time — same upgrade, two different rules' });
   }
 
   return f;
@@ -141,11 +166,22 @@ function renderSVG(frame) {
   out += `<text class="legend-text" x="40" y="16">etcd quorum: ${frame.quorum}</text>`;
   frame.nodes.forEach((st, n) => {
     const cls = st === 'ready' ? 'node-rect' : `node-rect ${st}`;
-    out += `<rect class="${cls}" x="${NODE_X[n]}" y="40" width="${NODE_W}" height="150" rx="12"/>`;
-    out += `<text class="svg-title on-node" x="${NODE_X[n] + NODE_W / 2}" y="62" text-anchor="middle" dominant-baseline="central">master-${n}</text>`;
-    out += `<text class="svg-sub on-node" x="${NODE_X[n] + NODE_W / 2}" y="80" text-anchor="middle" dominant-baseline="central">${st}</text>`;
+    out += `<rect class="${cls}" x="${NODE_X[n]}" y="32" width="${NODE_W}" height="112" rx="12"/>`;
+    out += `<text class="svg-title on-node" x="${NODE_X[n] + NODE_W / 2}" y="54" text-anchor="middle" dominant-baseline="central">master-${n}</text>`;
+    out += `<text class="svg-sub on-node" x="${NODE_X[n] + NODE_W / 2}" y="72" text-anchor="middle" dominant-baseline="central">${st}</text>`;
   });
-  out += '<text class="legend-text" x="40" y="216">solid = ready · dashed = cordoned · dashed (reboot) = rebooting</text>';
+
+  if (frame.workers) {
+    out += '<text class="legend-text" x="40" y="168">workers · maxUnavailable: 2</text>';
+    frame.workers.forEach((st, n) => {
+      const cls = st === 'ready' ? 'node-rect' : `node-rect ${st}`;
+      out += `<rect class="${cls}" x="${NODE_X[n]}" y="184" width="${NODE_W}" height="112" rx="12"/>`;
+      out += `<text class="svg-title on-node" x="${NODE_X[n] + NODE_W / 2}" y="206" text-anchor="middle" dominant-baseline="central">worker-${n}</text>`;
+      out += `<text class="svg-sub on-node" x="${NODE_X[n] + NODE_W / 2}" y="224" text-anchor="middle" dominant-baseline="central">${st}</text>`;
+    });
+  }
+
+  out += `<text class="legend-text" x="40" y="${frame.workers ? 322 : 168}">solid = ready · dashed = cordoned · dashed (reboot) = rebooting</text>`;
   return out;
 }
 
@@ -161,10 +197,15 @@ function metrics(frame) {
     ];
   }
   const ready = frame.nodes.filter((n) => n === 'ready').length;
-  return [
+  const metricsOut = [
     { label: 'Control plane ready', value: `${ready} / 3`, tone: ready === 3 ? 'ok' : 'warn' },
     { label: 'etcd quorum', value: frame.quorum, tone: frame.quorum === '3 / 3' ? 'ok' : 'warn' },
   ];
+  if (frame.workers) {
+    const workersReady = frame.workers.filter((w) => w === 'ready').length;
+    metricsOut.push({ label: 'Workers ready', value: `${workersReady} / 3`, tone: workersReady === 3 ? 'ok' : 'warn' });
+  }
+  return metricsOut;
 }
 
 const NOTES = {
@@ -175,8 +216,8 @@ const NOTES = {
   ],
   'control-plane-first': [
     { heading: 'What to point at', text: 'Quorum sitting at 2 of 3 for the entire window a master is down — that number is the whole reason this is one at a time.' },
-    { heading: 'Line that lands', text: 'The master MachineConfigPool has a maxUnavailable field too. It exists, and etcd quorum makes it academic.' },
-    { ask: 'Do you know how long your control plane spends in this one-at-a-time phase before worker pools even begin?' },
+    { heading: 'The payoff', text: 'Watch the row that appears the moment the control plane clears: the exact same maxUnavailable field the masters had all along finally does something, and two workers go down together.' },
+    { ask: 'Do you know how long your control plane spends in its one-at-a-time phase before worker pools even get to use their own concurrency?' },
   ],
   'degraded-blocks': [
     { heading: 'What to point at', text: 'machine-config and ingress sitting untouched the whole time network is Degraded.' },
@@ -213,6 +254,19 @@ spec:
 # maxUnavailable: 1 is the field, but etcd quorum is
 # what actually enforces one node at a time - raising
 # this number here would not change that.
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: worker
+spec:
+  maxUnavailable: 2
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/worker: ""
+
+# No quorum to protect here - maxUnavailable is the
+# only limit, and this pool actually gets to use it.
 `,
   'degraded-blocks': `apiVersion: config.openshift.io/v1
 kind: ClusterOperator
@@ -248,7 +302,7 @@ const FEATURES = {
     { name: 'etcd quorum', kind: 'control plane',
       what: 'Two of three voting members must stay up. This is the real constraint, not a configured field.' },
     { name: 'MachineConfigPool: worker', kind: 'machineconfiguration.openshift.io/v1',
-      what: "Unaffected by any of this — its own maxUnavailable only starts applying once the control plane finishes." },
+      what: 'Starts only once the control plane finishes, then actually uses its own maxUnavailable — no quorum here to make it academic.' },
   ],
   'degraded-blocks': [
     { name: 'status.conditions: Degraded', kind: 'ClusterOperator',
@@ -265,8 +319,8 @@ export default {
   advanced: true,
   title: 'RHOCP upgrade flow: CVO, ClusterOperators, and the control plane',
   summary: 'What oc adm upgrade actually orchestrates above every other animation in this set: a graph of ClusterOperators, a control plane that always goes one node at a time, and the one failure mode that freezes all of it.',
-  description: 'The Cluster Version Operator updating ClusterOperators through a dependency graph, three control-plane nodes updating one at a time to protect etcd quorum, and a Degraded ClusterOperator halting the entire upgrade.',
-  viewBox: '0 0 680 230',
+  description: 'The Cluster Version Operator updating ClusterOperators through a dependency graph, three control-plane nodes updating one at a time to protect etcd quorum before three workers move two at a time behind them, and a Degraded ClusterOperator halting the entire upgrade.',
+  viewBox: '0 0 680 350',
   modes: MODES,
   buildFrames,
   renderSVG,
