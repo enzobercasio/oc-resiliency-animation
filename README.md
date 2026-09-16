@@ -48,6 +48,7 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 | **MachineConfigPools: how many nodes at once** | Pool concurrency and custom pools — the cluster-level control that sets the shape of the upgrade |
 | **Rolling update: maxSurge vs maxUnavailable** | A Deployment replacing its own pods, and why a PDB has nothing to do with it |
 | **StatefulSets: when pods are not interchangeable** | Stable identity, ordered rollouts, and the volume attach that dominates stateful recovery time |
+| **RHOCP upgrade flow: CVO, ClusterOperators, and the control plane** | The graph every other animation happens inside, the control plane's one-node-at-a-time rule, and a Degraded operator that freezes the whole upgrade |
 
 Each has 2–4 modes you switch between live, and they are ordered to build on
 each other — start at the top.

@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **69–80 minutes** for all fourteen, which is the right length
+Total runtime **74–86 minutes** for all fifteen, which is the right length
 for the concept half of a session before you move to the live cluster demo.
 
 ---
@@ -23,8 +23,8 @@ for the concept half of a session before you move to the live cluster demo.
       its group — currently the required-rule-with-no-room,
       ScheduleAnyway-proceeds, when-it-never-recovers,
       preemption-bypasses-the-eviction-API,
-      ClusterResourceOverride-rewrites-it, node-pressure and
-      drain-with-a-volume modes.
+      ClusterResourceOverride-rewrites-it, a-degraded-operator-blocks-everything,
+      node-pressure and drain-with-a-volume modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
       sidebar drops to the core eight and the advanced modes disappear from the
       tab rows, so there is nothing on screen to get asked about mid-session.
@@ -531,6 +531,43 @@ Close on the final frame — the zone constraint:
 **Ask:** *"Are your stateful PDBs sized for quorum, or copied from a stateless
 workload?"* `minAvailable: 2` of 3 keeps a database writable; the stateless
 instinct of "one at a time is fine" can lose the cluster instead of degrading it.
+
+---
+
+### 15. RHOCP upgrade flow (6 min)
+
+Open: `#cluster-upgrade-flow/orchestration/0`
+
+The closer. Every animation today happened somewhere inside this process
+without naming it — this is the process.
+
+Play **CVO orchestrates the graph**. Land the closing frame:
+
+> "Every ClusterOperator reports Available. Notice what that frame does not
+> say: not one node has rebooted yet. Everything up to here was control-plane
+> software — machine-config is the operator that starts touching nodes, and
+> that step is everything you've already seen today."
+
+Switch to **Control plane before workers** (`2`):
+
+> "Three nodes, three etcd votes. One at a time, always — not a configured
+> concurrency limit, a hard sequence, because quorum only survives losing one.
+> Worker pools don't even start until this finishes."
+
+**Ask:** *"Do you know how long your control plane spends in this
+one-at-a-time phase before worker pools even begin?"*
+
+If the audience is past the core set, switch to
+**A degraded operator blocks everything** (`3`, marked advanced):
+
+> "network goes Degraded, and the entire graph freezes right there.
+> machine-config and ingress never even get reached. The most common real
+> 'stuck upgrade' isn't a stuck node drain — it's exactly this."
+
+Close the session on this line:
+
+> "oc get clusteroperators is where you look before you look at a single
+> node. Everything else today was what happens after this graph clears."
 
 ---
 

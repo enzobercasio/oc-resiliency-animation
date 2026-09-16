@@ -34,7 +34,10 @@
  * follows it with the two controllers that rewrite requests-limits' numbers
  * automatically - HPA changes how many, VPA changes how much, running both
  * on the same metric fights, and ClusterResourceOverride can rewrite either
- * one before the scheduler ever sees the pod.
+ * one before the scheduler ever sees the pod. cluster-upgrade-flow closes
+ * the set: the Cluster Version Operator layer every other animation has been
+ * a part of without naming it, ending on the one failure mode - a Degraded
+ * ClusterOperator - that stalls an upgrade before a single node ever drains.
  */
 import multiReplica from './animations/multi-replica.js';
 import podAffinity from './animations/pod-affinity.js';
@@ -49,6 +52,7 @@ import statefulSets from './animations/statefulsets.js';
 import requestsLimits from './animations/requests-limits.js';
 import priorityPreemption from './animations/priority-preemption.js';
 import autoscaling from './animations/autoscaling.js';
+import clusterUpgradeFlow from './animations/cluster-upgrade-flow.js';
 import gracefulShutdown from './animations/graceful-shutdown.js';
 
 export const animations = [
@@ -68,4 +72,5 @@ export const animations = [
   machineConfigPools,
   rolloutStrategy,
   statefulSets,
+  clusterUpgradeFlow,
 ];
