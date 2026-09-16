@@ -23,7 +23,7 @@ const MODES = [
     caption: 'Replica count scales with an observed metric — nothing about one pod’s own resources changes' },
   { id: 'vpa', label: 'VPA: how much',
     caption: 'Requests and limits scale with observed usage — nothing about replica count changes' },
-  { id: 'conflict', label: 'Both, on the same metric',
+  { id: 'conflict', label: 'Both, on the same metric', antiPattern: true,
     caption: 'HPA and VPA targeting the same CPU signal fight each other, exactly as the docs warn' },
   { id: 'cro', label: 'ClusterResourceOverride rewrites it', advanced: true,
     caption: 'An admission webhook can silently change what a manifest declares before the pod is ever scheduled' },

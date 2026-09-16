@@ -17,7 +17,7 @@
 const MODES = [
   { id: 'dynamic-provisioning', label: 'Dynamic provisioning',
     caption: 'A PVC with no matching PersistentVolume gets one created for it on demand' },
-  { id: 'binding-mode', label: 'Immediate can strand a zone',
+  { id: 'binding-mode', label: 'Immediate can strand a zone', antiPattern: true,
     caption: 'Binding before a pod exists means guessing a zone — and the guess can be wrong' },
   { id: 'reclaim-delete', label: 'reclaimPolicy: Delete',
     caption: 'Deleting the claim deletes the volume and the data with it — the default for most StorageClasses' },

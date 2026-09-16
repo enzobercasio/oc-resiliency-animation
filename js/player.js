@@ -107,8 +107,13 @@ function buildTabs(anim) {
     if (m.advanced) {
       b.classList.add('adv');
       b.title = 'Going deeper — safe to skip for a beginner audience';
-      b.setAttribute('aria-label', `${m.label} (advanced)`);
     }
+    if (m.antiPattern) {
+      b.classList.add('anti-pattern');
+      b.title = 'Anti-pattern — a misconfiguration to recognise, not to copy';
+    }
+    const tags = [m.advanced && 'advanced', m.antiPattern && 'anti-pattern'].filter(Boolean);
+    if (tags.length) b.setAttribute('aria-label', `${m.label} (${tags.join(', ')})`);
     b.onclick = () => selectMode(m.id);
     tabs.appendChild(b);
   });

@@ -149,6 +149,12 @@ body {
 }
 .tabs button:hover { background: var(--surface-2); }
 .tabs button[aria-selected="true"] { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+
+/* An anti-pattern mode demonstrates a specific misconfiguration with no
+   legitimate use - not a nuance to skip like "advanced", a mistake to
+   recognise. Red text survives hover and selection so it never reads as
+   merely "the current tab" once picked. */
+.tabs button.anti-pattern { color: var(--bad-text); }
 .caption { font-size: 13px; color: var(--text-secondary); margin: 8px 0 14px; min-height: 20px; }
 
 /* ---------- canvas ---------- */

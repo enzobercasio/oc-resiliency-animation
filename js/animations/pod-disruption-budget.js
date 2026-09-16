@@ -18,7 +18,7 @@
 const MODES = [
   { id: 'min-available', label: 'minAvailable: an absolute floor',
     caption: 'disruptionsAllowed is ready replicas minus minAvailable — nothing more' },
-  { id: 'deadlock', label: 'minAvailable = replicas: deadlock',
+  { id: 'deadlock', label: 'minAvailable = replicas: deadlock', antiPattern: true,
     caption: 'Zero headroom by design — a node drain retries forever and never succeeds' },
   { id: 'max-unavailable', label: 'maxUnavailable: a scaling ceiling',
     caption: 'A percentage recalculates automatically on every scale event' },
