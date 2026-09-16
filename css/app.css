@@ -153,8 +153,24 @@ body {
 /* An anti-pattern mode demonstrates a specific misconfiguration with no
    legitimate use - not a nuance to skip like "advanced", a mistake to
    recognise. Red text survives hover and selection so it never reads as
-   merely "the current tab" once picked. */
+   merely "the current tab" once picked, and the pill names it outright
+   rather than leaving red-as-the-only-signal.
+   Note: a mode is never both .adv and .anti-pattern today - the two
+   ::after pills would collide, since an element gets only one. */
 .tabs button.anti-pattern { color: var(--bad-text); }
+.tabs button.anti-pattern::after {
+  content: "anti-pattern";
+  display: inline-block;
+  font-size: 9.5px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 1px 6px; margin-left: 8px;
+  border-radius: 999px;
+  background: var(--surface-2); color: var(--bad-text);
+  vertical-align: 1px;
+}
+.tabs button.anti-pattern[aria-selected="true"]::after {
+  background: var(--bad-text); color: var(--surface-1);
+}
 .caption { font-size: 13px; color: var(--text-secondary); margin: 8px 0 14px; min-height: 20px; }
 
 /* ---------- canvas ---------- */
