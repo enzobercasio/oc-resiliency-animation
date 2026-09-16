@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bare-Metal Capacity Simulator</title>
+<meta name="description" content="An interactive drain-capacity calculator for bare-metal RHOCP pools: edit the node pool, workload requests, and HPA settings and watch the utilization verdict update live.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f9f9f7;
+    --surface: #fcfcfb;
+    --surface-2: #f1f0ec;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-3: #898781;
+    --rule: rgba(11, 11, 11, 0.13);
+    --rule-strong: rgba(11, 11, 11, 0.26);
+    --accent: #2a78d6;
+    --accent-soft: #eaf2fc;
+    --good: #0ca30c;
+    --good-soft: #e8f6e4;
+    --warn: #b5790a;
+    --warn-soft: #fff3dc;
+    --bad: #d03b3b;
+    --bad-soft: #fbe9e8;
+    --shadow: 0 1px 2px rgba(11, 11, 11, 0.05);
+    --focus: 0 0 0 3px rgba(42, 120, 214, 0.28);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d0d0d;
+      --surface: #1a1a19;
+      --surface-2: #232320;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --ink-3: #898781;
+      --rule: rgba(255, 255, 255, 0.14);
+      --rule-strong: rgba(255, 255, 255, 0.28);
+      --accent: #3987e5;
+      --accent-soft: #142235;
+      --good: #0ca30c;
+      --good-soft: #12281a;
+      --warn: #fab219;
+      --warn-soft: #2b2211;
+      --bad: #d03b3b;
+      --bad-soft: #2a1615;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232320;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #898781;
+    --rule: rgba(255, 255, 255, 0.14);
+    --rule-strong: rgba(255, 255, 255, 0.28);
+    --accent: #3987e5;
+    --accent-soft: #142235;
+    --good: #0ca30c;
+    --good-soft: #12281a;
+    --warn: #fab219;
+    --warn-soft: #2b2211;
+    --bad: #d03b3b;
+    --bad-soft: #2a1615;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.55;
+    padding-inline: 16px;
+    padding-block: 0 64px;
+  }
+  h1, h2, h3 { font-family: "Archivo", system-ui, sans-serif; text-wrap: balance; margin: 0; }
+  .mono, code, input, select { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  ::selection { background: var(--accent-soft); }
+
+  .wrap { max-width: 1040px; margin-inline: auto; }
+
+  .crosslink { max-width: 1040px; margin: 0 auto; padding-block: 14px 0; font-size: 0.85rem; color: var(--ink-3); }
+  .crosslink a { color: var(--accent); text-decoration: none; }
+  .crosslink a:hover { text-decoration: underline; }
+
+  /* ---------- sticky result bar ---------- */
+  .resultbar {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--bg);
+    padding-block: 14px 12px;
+    margin-inline: -16px; padding-inline: 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .resultbar-inner {
+    max-width: 1040px; margin-inline: auto;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .brand { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+  .brand .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+  .brand h1 { font-size: 1.15rem; font-weight: 700; }
+  .headline { display: flex; align-items: baseline; gap: 10px; }
+  .headline .pct { font-size: 2.1rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 0.82rem; font-weight: 600; padding: 5px 12px 5px 9px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .pill.good { background: var(--good-soft); color: color-mix(in srgb, var(--good) 70%, var(--ink) 30%); }
+  .pill.good .dot { background: var(--good); }
+  .pill.warn { background: var(--warn-soft); color: color-mix(in srgb, var(--warn) 65%, var(--ink) 35%); }
+  .pill.warn .dot { background: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: color-mix(in srgb, var(--bad) 70%, var(--ink) 30%); }
+  .pill.bad .dot { background: var(--bad); }
+  .resultbar-detail { font-size: 0.85rem; color: var(--ink-3); }
+  .resultbar-detail .num { color: var(--ink-2); font-weight: 500; }
+  .reset-btn {
+    font: inherit; font-family: "IBM Plex Sans", sans-serif; font-size: 0.82rem; font-weight: 500;
+    background: none; border: 1px solid var(--rule-strong); color: var(--ink-2);
+    padding: 7px 13px; border-radius: 7px; cursor: pointer;
+  }
+  .reset-btn:hover { background: var(--surface-2); }
+
+  header.intro { padding-block: 26px 8px; display: flex; flex-direction: column; gap: 8px; max-width: 68ch; }
+  header.intro p { color: var(--ink-2); margin: 0; font-size: 0.98rem; }
+
+  /* ---------- layout ---------- */
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 22px; margin-top: 22px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 20px 22px 22px;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .card-head h2 { font-size: 1rem; font-weight: 700; }
+  .card-head .hint { font-size: 0.8rem; color: var(--ink-3); }
+  .card.results { position: sticky; top: 86px; }
+
+  /* ---------- form controls ---------- */
+  label.field {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    font-size: 0.88rem; color: var(--ink-2);
+  }
+  label.field .field-name { display: flex; flex-direction: column; gap: 1px; }
+  label.field .field-name .sub { font-size: 0.74rem; color: var(--ink-3); }
+  .field-input { display: flex; align-items: center; gap: 6px; flex: none; }
+  input[type="number"] {
+    width: 88px; text-align: right;
+    background: var(--surface-2); color: var(--ink);
+    border: 1px solid var(--rule-strong); border-radius: 6px;
+    padding: 7px 9px; font-size: 0.92rem; font-variant-numeric: tabular-nums;
+  }
+  input[type="number"]:focus, .chip input:focus { outline: none; box-shadow: var(--focus); border-color: var(--accent); }
+  .unit { font-size: 0.78rem; color: var(--ink-3); width: 34px; }
+  .field-row { display: flex; flex-direction: column; gap: 10px; }
+  hr.sep { border: none; border-top: 1px solid var(--rule); margin: 2px 0; }
+
+  .checkline { display: flex; align-items: center; gap: 9px; font-size: 0.9rem; font-weight: 600; }
+  .checkline input { width: 17px; height: 17px; accent-color: var(--accent); }
+
+  /* ---------- node chips ---------- */
+  .nodes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: var(--surface-2); border: 1px solid var(--rule-strong); border-radius: 8px;
+    padding: 8px 6px 6px; width: 82px; position: relative;
+  }
+  .chip .chip-label { font-size: 0.68rem; color: var(--ink-3); letter-spacing: 0.02em; }
+  .chip input { width: 100%; text-align: center; background: var(--surface); border: 1px solid var(--rule); border-radius: 5px; padding: 4px 2px; font-size: 0.86rem; }
+  .chip .chip-unit { font-size: 0.65rem; color: var(--ink-3); }
+  .chip .rm {
+    position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--rule-strong); color: var(--ink-3);
+    font-size: 11px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .chip .rm:hover { color: var(--bad); border-color: var(--bad); }
+  .chip.removed-largest { border-color: var(--bad); background: var(--bad-soft); }
+  .chip.removed-largest .chip-label { color: color-mix(in srgb, var(--bad) 70%, var(--ink) 30%); }
+  .add-node {
+    width: 82px; height: 100%; min-height: 58px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px dashed var(--rule-strong); border-radius: 8px; background: none;
+    color: var(--ink-3); font-size: 1.3rem; cursor: pointer; font-family: inherit;
+  }
+  .add-node:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ---------- results detail ---------- */
+  .ledger { display: flex; flex-direction: column; }
+  .ledger-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--rule); font-size: 0.88rem; }
+  .ledger-row:last-child { border-bottom: none; }
+  .ledger-row .k { color: var(--ink-2); }
+  .ledger-row .v { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ledger-row.total { border-top: 1px solid var(--rule-strong); border-bottom: none; margin-top: 2px; padding-top: 10px; }
+  .ledger-row.total .v { font-size: 1rem; }
+
+  .meter { position: relative; height: 26px; background: var(--surface-2); border-radius: 5px; margin: 4px 0 18px; }
+  .meter-fill { position: absolute; inset: 0 auto 0 0; height: 100%; border-radius: 5px; transition: width 120ms ease; }
+  .meter-target { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--rule-strong); }
+  .meter-target::after {
+    content: "85%"; position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-family: "IBM Plex Mono", monospace; font-size: 9px; color: var(--ink-3);
+  }
+
+  .check {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px; border-radius: 8px; font-size: 0.86rem;
+  }
+  .check .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; }
+  .check.good { background: var(--good-soft); }
+  .check.good .dot { background: var(--good); }
+  .check.warn { background: var(--warn-soft); }
+  .check.warn .dot { background: var(--warn); }
+  .check.bad { background: var(--bad-soft); }
+  .check.bad .dot { background: var(--bad); }
+  .check b { display: block; margin-bottom: 2px; }
+  .check span.detail { color: var(--ink-2); }
+
+  footer.note { max-width: 68ch; margin: 28px auto 0; color: var(--ink-3); font-size: 0.82rem; padding-top: 18px; border-top: 1px solid var(--rule); }
+
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; }
+    .card.results { position: static; }
+  }
+  @media (max-width: 480px) {
+    .resultbar-inner { gap: 10px; }
+    .headline .pct { font-size: 1.7rem; }
+    .brand h1 { font-size: 1.02rem; }
+  }
+</style>
+</head>
+<body>
+
+<p class="crosslink">← <a href="index.html">Animated explainers</a> · <a href="capacity-math.html">The arithmetic</a></p>
+
+<div class="resultbar">
+  <div class="resultbar-inner">
+    <div class="brand">
+      <div class="eyebrow">Capacity simulator</div>
+      <h1>Will the drain fit?</h1>
+    </div>
+    <div class="headline">
+      <span class="pct mono" id="out-pct">—</span>
+      <span class="pill" id="out-pill"><span class="dot"></span><span id="out-pill-label">—</span></span>
+    </div>
+    <div class="resultbar-detail" id="out-detail">—</div>
+    <button class="reset-btn" id="btn-reset" type="button">Reset to example</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="intro">
+    <p>Type your pool's real numbers in. This applies the four refinements — allocatable not capacity, DaemonSets subtracted from availability not added to demand, the largest nodes removed rather than an average node, and a bin-packing check — plus the HPA correction, live.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Pool</h2>
+          <span class="hint">click a node to edit its size</span>
+        </div>
+        <div class="nodes" id="node-list"></div>
+
+        <hr class="sep">
+        <div class="field-row">
+          <label class="field" for="in-reserved">
+            <span class="field-name">System + kube reserved + eviction<span class="sub">§1 — per node, subtracted from allocatable</span></span>
+            <span class="field-input"><input type="number" id="in-reserved" min="0" step="0.5" value="7"><span class="unit">GiB</span></span>
+          </label>
+          <label class="field" for="in-daemonset">
+            <span class="field-name">DaemonSet requests<span class="sub">§2 — per node, comes off availability</span></span>
+            <span class="field-input"><input type="number" id="in-daemonset" min="0" step="0.5" value="5"><span class="unit">GiB</span></span>
+          </label>
+          <label class="field" for="in-maxunavail">
+            <span class="field-name">maxUnavailable<span class="sub">§3 — the N largest nodes come out first</span></span>
+            <span class="field-input"><input type="number" id="in-maxunavail" min="0" step="1" value="1"><span class="unit">nodes</span></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Workload</h2></div>
+        <div class="field-row">
+          <label class="field" for="in-requests">
+            <span class="field-name">Sum of non-DaemonSet requests<span class="sub">whole pool, today</span></span>
+            <span class="field-input"><input type="number" id="in-requests" min="0" step="1" value="220"><span class="unit">GiB</span></span>
+          </label>
+          <label class="field" for="in-surge">
+            <span class="field-name">maxSurge allowance<span class="sub">headroom for in-flight rollouts</span></span>
+            <span class="field-input"><input type="number" id="in-surge" min="0" step="1" value="0"><span class="unit">GiB</span></span>
+          </label>
+          <label class="field" for="in-largestpod">
+            <span class="field-name">Largest single pod's request<span class="sub">§4 — bin-packing check</span></span>
+            <span class="field-input"><input type="number" id="in-largestpod" min="0" step="1" value="24"><span class="unit">GiB</span></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>HPA &amp; PDB</h2>
+        </div>
+        <label class="checkline"><input type="checkbox" id="in-hpa-enabled" checked> Something in this pool autoscales</label>
+        <div class="field-row" id="hpa-fields">
+          <label class="field" for="in-hpa-managed">
+            <span class="field-name">HPA-managed requests<span class="sub">portion of the sum above that scales</span></span>
+            <span class="field-input"><input type="number" id="in-hpa-managed" min="0" step="1" value="80"><span class="unit">GiB</span></span>
+          </label>
+          <label class="field" for="in-hpa-current">
+            <span class="field-name">Replicas that portion reflects<span class="sub">current count behind that request sum</span></span>
+            <span class="field-input"><input type="number" id="in-hpa-current" min="1" step="1" value="20"><span class="unit">reps</span></span>
+          </label>
+          <label class="field" for="in-hpa-max">
+            <span class="field-name">HPA maxReplicas<span class="sub">size the check against this, not today's count</span></span>
+            <span class="field-input"><input type="number" id="in-hpa-max" min="1" step="1" value="40"><span class="unit">reps</span></span>
+          </label>
+          <label class="field" for="in-hpa-min">
+            <span class="field-name">HPA minReplicas</span>
+            <span class="field-input"><input type="number" id="in-hpa-min" min="0" step="1" value="20"><span class="unit">reps</span></span>
+          </label>
+          <label class="field" for="in-pdb-floor">
+            <span class="field-name">PDB minAvailable floor<span class="sub">minReplicas must not fall below this</span></span>
+            <span class="field-input"><input type="number" id="in-pdb-floor" min="0" step="1" value="2"><span class="unit">reps</span></span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col">
+      <div class="card results">
+        <div class="card-head"><h2>Result</h2></div>
+
+        <div class="ledger" id="ledger"></div>
+
+        <div>
+          <div class="meter" id="meter"><div class="meter-fill" id="meter-fill"></div><div class="meter-target" style="left:68%"></div></div>
+        </div>
+
+        <div class="check" id="check-binpack"></div>
+        <div class="check" id="check-hpa"></div>
+        <div class="check" id="check-pdb"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">Models memory only — the same method applies to vCPU with its own reservation and request numbers. Nodes are assumed to already be Ready; this does not account for a node that is itself down in addition to the one being drained. See also <a href="capacity-math.html" style="color:var(--accent)">the worked-example write-up</a>.</footer>
+
+</div>
+
+<script>
+(function () {
+  var DEFAULTS = {
+    nodes: [64, 64, 64, 64, 64, 64],
+    reserved: 7,
+    daemonset: 5,
+    maxUnavailable: 1,
+    requests: 220,
+    surge: 0,
+    largestPod: 24,
+    hpaEnabled: true,
+    hpaManaged: 80,
+    hpaCurrent: 20,
+    hpaMax: 40,
+    hpaMin: 20,
+    pdbFloor: 2
+  };
+
+  var state = null;
+  var STORE_KEY = "bm-capacity-sim-v1";
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length) return parsed;
+      }
+    } catch (e) { /* private mode or corrupt data - fall through */ }
+    return JSON.parse(JSON.stringify(DEFAULTS));
+  }
+
+  function saveState() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
+  }
+
+  function el(id) { return document.getElementById(id); }
+  function fmt(n) {
+    if (!isFinite(n)) return "—";
+    var r = Math.round(n * 10) / 10;
+    return (r % 1 === 0 ? r.toFixed(0) : r.toFixed(1));
+  }
+
+  function renderNodes() {
+    var list = el("node-list");
+    list.innerHTML = "";
+    var sortedIdx = state.nodes.map(function (v, i) { return i; })
+      .sort(function (a, b) { return state.nodes[b] - state.nodes[a]; });
+    var removedIdx = {};
+    sortedIdx.slice(0, Math.min(state.maxUnavailable, state.nodes.length)).forEach(function (i) { removedIdx[i] = true; });
+
+    state.nodes.forEach(function (cap, i) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (removedIdx[i] ? " removed-largest" : "");
+      chip.innerHTML =
+        '<span class="chip-label">Node ' + (i + 1) + (removedIdx[i] ? " · out" : "") + '</span>' +
+        '<input type="number" min="1" step="1" value="' + cap + '" data-idx="' + i + '">' +
+        '<span class="chip-unit">GiB</span>' +
+        (state.nodes.length > 1 ? '<div class="rm" data-idx="' + i + '" title="Remove node">×</div>' : "");
+      list.appendChild(chip);
+    });
+
+    var add = document.createElement("button");
+    add.type = "button";
+    add.className = "add-node";
+    add.title = "Add a node";
+    add.textContent = "+";
+    list.appendChild(add);
+
+    list.querySelectorAll("input[data-idx]").forEach(function (inp) {
+      inp.addEventListener("input", function () {
+        state.nodes[+inp.dataset.idx] = Math.max(0, +inp.value || 0);
+        compute();
+      });
+    });
+    list.querySelectorAll(".rm").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.nodes.splice(+btn.dataset.idx, 1);
+        renderNodes();
+        compute();
+      });
+    });
+    add.addEventListener("click", function () {
+      var avg = state.nodes.length ? Math.round(state.nodes.reduce(function (a, b) { return a + b; }, 0) / state.nodes.length) : 64;
+      state.nodes.push(avg);
+      renderNodes();
+      compute();
+    });
+  }
+
+  function ledgerRow(k, v, opts) {
+    opts = opts || {};
+    return '<div class="ledger-row' + (opts.total ? " total" : "") + '"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>';
+  }
+
+  function verdictFor(u) {
+    if (u < 0.85) return { cls: "good", label: "Comfortable" };
+    if (u < 1.0) return { cls: "warn", label: "Tight — no slack" };
+    return { cls: "bad", label: "Stalls — pods Pending" };
+  }
+
+  function compute() {
+    var reserved = +el("in-reserved").value || 0;
+    var daemonset = +el("in-daemonset").value || 0;
+    var maxUnavail = Math.max(0, Math.round(+el("in-maxunavail").value || 0));
+    var requests = +el("in-requests").value || 0;
+    var surge = +el("in-surge").value || 0;
+    var largestPod = +el("in-largestpod").value || 0;
+
+    state.reserved = reserved; state.daemonset = daemonset; state.maxUnavailable = maxUnavail;
+    state.requests = requests; state.surge = surge; state.largestPod = largestPod;
+    state.hpaEnabled = el("in-hpa-enabled").checked;
+    state.hpaManaged = +el("in-hpa-managed").value || 0;
+    state.hpaCurrent = Math.max(1, +el("in-hpa-current").value || 1);
+    state.hpaMax = Math.max(1, +el("in-hpa-max").value || 1);
+    state.hpaMin = +el("in-hpa-min").value || 0;
+    state.pdbFloor = +el("in-pdb-floor").value || 0;
+
+    el("hpa-fields").style.opacity = state.hpaEnabled ? "1" : "0.4";
+    el("hpa-fields").style.pointerEvents = state.hpaEnabled ? "auto" : "none";
+
+    var perNode = function (cap) { return Math.max(0, cap - reserved - daemonset); };
+    var sortedDesc = state.nodes.slice().sort(function (a, b) { return b - a; });
+    var removed = sortedDesc.slice(0, Math.min(maxUnavail, sortedDesc.length));
+    var surviving = sortedDesc.slice(Math.min(maxUnavail, sortedDesc.length));
+
+    var available = surviving.reduce(function (s, c) { return s + perNode(c); }, 0);
+    var required = requests + surge;
+    var utilization = available > 0 ? required / available : Infinity;
+    var v = verdictFor(utilization);
+
+    el("out-pct").textContent = isFinite(utilization) ? (Math.round(utilization * 1000) / 10) + "%" : "—";
+    var pillEl = el("out-pill");
+    pillEl.className = "pill " + v.cls;
+    el("out-pill-label").textContent = v.label;
+    el("out-detail").innerHTML = surviving.length + " of " + state.nodes.length + ' nodes surviving · <span class="num">' + fmt(required) + ' GiB</span> required of <span class="num">' + fmt(available) + ' GiB</span> available';
+
+    var ledger = "";
+    ledger += ledgerRow("Nodes in pool", state.nodes.length + (maxUnavail ? " (−" + maxUnavail + " largest, §3)" : ""));
+    ledger += ledgerRow("Allocatable per surviving node", surviving.length ? surviving.map(function (c) { return fmt(c - reserved); }).join(", ") + " GiB" : "—");
+    ledger += ledgerRow("Less DaemonSet requests", "−" + fmt(daemonset) + " GiB / node");
+    ledger += ledgerRow("Available to workloads", fmt(available) + " GiB", { total: false });
+    ledger += ledgerRow("Required (requests + surge)", fmt(required) + " GiB");
+    ledger += ledgerRow("Utilisation", (isFinite(utilization) ? fmt(utilization * 100) + "%" : "—") + "  → target ≤ 85%", { total: true });
+    el("ledger").innerHTML = ledger;
+
+    var fill = el("meter-fill");
+    var pct = isFinite(utilization) ? Math.min(125, utilization * 100) : 125;
+    fill.style.width = (pct / 1.25) + "%";
+    fill.style.background = "var(--" + v.cls + ")";
+
+    var largestRemaining = surviving.length ? perNode(surviving[0]) : 0;
+    var fits = largestPod <= largestRemaining;
+    var bp = el("check-binpack");
+    bp.className = "check " + (fits ? "good" : "bad");
+    bp.innerHTML = '<span class="dot"></span><span><b>' + (fits ? "Largest pod fits" : "Largest pod will not fit anywhere") + '</b>' +
+      '<span class="detail">' + fmt(largestPod) + ' GiB pod vs ' + fmt(largestRemaining) + ' GiB free on the largest surviving node (§4)</span></span>';
+
+    var hpaBox = el("check-hpa");
+    var pdbBox = el("check-pdb");
+    if (state.hpaEnabled) {
+      var nonHpa = Math.max(0, requests - state.hpaManaged);
+      var requiredAtMax = nonHpa + state.hpaManaged * (state.hpaMax / state.hpaCurrent) + surge;
+      var utilAtMax = available > 0 ? requiredAtMax / available : Infinity;
+      var vMax = verdictFor(utilAtMax);
+      hpaBox.className = "check " + vMax.cls;
+      hpaBox.style.display = "flex";
+      hpaBox.innerHTML = '<span class="dot"></span><span><b>At maxReplicas (' + state.hpaMax + '): ' + fmt(utilAtMax * 100) + '% — ' + vMax.label + '</b>' +
+        '<span class="detail">Required climbs to ' + fmt(requiredAtMax) + ' GiB at peak scale. Size the check here, not at today’s ' + state.hpaCurrent + ' replicas.</span></span>';
+
+      var pdbOk = state.hpaMin >= state.pdbFloor;
+      pdbBox.className = "check " + (pdbOk ? "good" : "bad");
+      pdbBox.style.display = "flex";
+      pdbBox.innerHTML = '<span class="dot"></span><span><b>' + (pdbOk ? "minReplicas clears the PDB floor" : "minReplicas can scale below the PDB floor") + '</b>' +
+        '<span class="detail">minReplicas ' + state.hpaMin + ' vs PDB minAvailable ' + state.pdbFloor + (pdbOk ? '' : ' — a scale-down can leave this workload unable to tolerate an eviction') + '</span></span>';
+    } else {
+      hpaBox.style.display = "none";
+      pdbBox.style.display = "none";
+    }
+
+    saveState();
+  }
+
+  function applyStateToInputs() {
+    el("in-reserved").value = state.reserved;
+    el("in-daemonset").value = state.daemonset;
+    el("in-maxunavail").value = state.maxUnavailable;
+    el("in-requests").value = state.requests;
+    el("in-surge").value = state.surge;
+    el("in-largestpod").value = state.largestPod;
+    el("in-hpa-enabled").checked = state.hpaEnabled;
+    el("in-hpa-managed").value = state.hpaManaged;
+    el("in-hpa-current").value = state.hpaCurrent;
+    el("in-hpa-max").value = state.hpaMax;
+    el("in-hpa-min").value = state.hpaMin;
+    el("in-pdb-floor").value = state.pdbFloor;
+    renderNodes();
+  }
+
+  ["in-reserved", "in-daemonset", "in-maxunavail", "in-requests", "in-surge", "in-largestpod",
+   "in-hpa-managed", "in-hpa-current", "in-hpa-max", "in-hpa-min", "in-pdb-floor"].forEach(function (id) {
+    el(id).addEventListener("input", compute);
+  });
+  el("in-hpa-enabled").addEventListener("change", compute);
+
+  el("btn-reset").addEventListener("click", function () {
+    state = JSON.parse(JSON.stringify(DEFAULTS));
+    applyStateToInputs();
+    compute();
+  });
+
+  state = loadState();
+  applyStateToInputs();
+  compute();
+})();
+</script>
+</body>
+</html>

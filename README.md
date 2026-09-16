@@ -68,6 +68,27 @@ being told it.
 
 ---
 
+## Capacity planning tools
+
+Two standalone pages, linked from the sidebar, for the pool-capacity
+arithmetic behind `maxUnavailable` on bare-metal RHOCP — not animations, so
+they live outside the registry:
+
+- **[capacity-math.html](capacity-math.html)** — the corrected formula, a
+  six-node worked example, the CLI/PromQL to pull the real numbers off a
+  cluster, and the correction to the usual HPA argument.
+- **[capacity-simulator.html](capacity-simulator.html)** — the interactive
+  version. Edit an actual node pool (add, remove, resize), the workload
+  requests, and the HPA/PDB settings, and the utilization verdict, bin-packing
+  check, and maxReplicas-adjusted check all recompute live. Inputs persist
+  per-browser via `localStorage`.
+
+Both are self-contained (their own fonts, styles, and script — no dependency
+on `js/player.js` or the registry) so they work as standalone links even
+outside this site.
+
+---
+
 ## Presenting
 
 | Key | Action |
