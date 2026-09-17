@@ -90,6 +90,14 @@ outside this site.
 
 ---
 
+## Demo video
+
+**[workload-resiliency-1.mp4](workload-resiliency-1.mp4)**, linked from the
+sidebar footer — a recorded walkthrough of the site for anyone who wants the
+tour without a live presenter.
+
+---
+
 ## Presenting
 
 | Key | Action |
