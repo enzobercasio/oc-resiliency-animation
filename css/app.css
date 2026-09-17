@@ -57,14 +57,31 @@ body {
 .level-switch .icon-btn[aria-checked="true"] + .icon-btn { border-left-color: var(--accent); }
 
 /* ---------- layout ---------- */
-.layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 0; align-items: start; }
+.layout { display: grid; grid-template-columns: var(--sidebar-w, 232px) 6px minmax(0, 1fr); gap: 0; align-items: start; }
 .sidebar {
   padding: 20px 16px;
-  border-right: 1px solid var(--border);
+  min-width: 0;
   position: sticky; top: 53px;
   height: calc(100vh - 53px);
   overflow-y: auto;
 }
+/* A draggable column between sidebar and stage, not a border on either side of
+   it, so the hit area for dragging is wider than the visible line. */
+.sidebar-resizer {
+  position: sticky; top: 53px;
+  height: calc(100vh - 53px);
+  cursor: col-resize;
+  touch-action: none;
+}
+.sidebar-resizer::before {
+  content: ""; display: block; margin: 0 auto;
+  width: 1px; height: 100%;
+  background: var(--border);
+}
+.sidebar-resizer:hover::before,
+.sidebar-resizer.dragging::before { width: 2px; background: var(--accent); }
+.sidebar-resizer:focus-visible { outline: none; }
+.sidebar-resizer:focus-visible::before { width: 2px; background: var(--accent); }
 .sidebar-label, .sidebar-foot {
   font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--text-muted); margin: 0 0 10px;
@@ -88,7 +105,6 @@ body {
 .sidebar-foot code { font-family: var(--font-mono); font-size: 11px; }
 .sidebar-foot a { color: var(--accent); text-decoration: none; }
 .sidebar-foot a:hover { text-decoration: underline; }
-.sidebar-foot-links { font-size: 14px; }
 
 .anim-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .anim-list button {
@@ -116,6 +132,24 @@ body {
   margin-top: 18px; padding-top: 14px;
   border-top: 1px solid var(--border);
 }
+
+/* A second, static list of links styled the same as the animation list above
+   it, so these read as sidebar items rather than muted footer text. Its own
+   heading is a :first-child within this list, so the section divider is on
+   the list itself rather than reusing the group-label rule above. */
+.resource-list {
+  margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.resource-list li { width: 100%; }
+.sidebar-link {
+  display: block; width: 100%; text-align: left; font: inherit; font-size: 14px;
+  padding: 9px 11px; border-radius: var(--radius);
+  background: transparent; color: var(--text-primary);
+  border: 1px solid transparent; cursor: pointer; line-height: 1.35;
+  text-decoration: none;
+}
+.sidebar-link:hover { background: var(--surface-2); }
 /* Deeper entries sit back a step from the core path without being hidden. */
 .anim-list li.deeper button { color: var(--text-secondary); }
 .anim-list li.deeper button:hover,
@@ -326,6 +360,7 @@ pre.yaml {
    so no element collapses; only visibility and sizing change. */
 body.presenting .topbar,
 body.presenting .sidebar,
+body.presenting .sidebar-resizer,
 body.presenting .stage-head,
 body.presenting .sidebar-foot { display: none; }
 body.presenting .layout { grid-template-columns: minmax(0, 1fr); }
@@ -342,8 +377,10 @@ body.presenting .notes-panel { top: 0; }
 
 @media (max-width: 860px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
-  .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .sidebar { position: static; height: auto; border-bottom: 1px solid var(--border); }
+  .sidebar-resizer { display: none; }
   .anim-list { flex-direction: row; flex-wrap: wrap; }
+  .resource-list { border-top: none; margin-top: 8px; padding-top: 8px; }
   .notes-panel { position: static; width: auto; border-left: none; border-top: 1px solid var(--border); }
   .stage { padding: 20px 16px 48px; }
 }

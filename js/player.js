@@ -91,6 +91,59 @@ function markSidebar() {
   });
 }
 
+/* Sidebar width is a drag handle, not a setting buried in a menu - it is the
+   one layout choice that genuinely depends on the room (a long animation
+   title truncating on a projector) rather than on the audience. */
+const SIDEBAR_MIN = 180;
+const SIDEBAR_MAX = 480;
+const SIDEBAR_DEFAULT = 232;
+
+function setSidebarWidth(px, persist) {
+  const w = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(px)));
+  document.querySelector('.layout').style.setProperty('--sidebar-w', `${w}px`);
+  if (persist) {
+    try { localStorage.setItem('sidebarWidth', String(w)); } catch (e) { /* private mode */ }
+  }
+  return w;
+}
+
+function initSidebarResize() {
+  const handle = el('sidebar-resizer');
+  const layout = document.querySelector('.layout');
+
+  let saved = 0;
+  try { saved = parseInt(localStorage.getItem('sidebarWidth'), 10); } catch (e) { /* ignore */ }
+  setSidebarWidth(saved || SIDEBAR_DEFAULT, false);
+
+  let dragging = false;
+  handle.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    handle.classList.add('dragging');
+    handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    setSidebarWidth(e.clientX - layout.getBoundingClientRect().left, false);
+  });
+  const stopDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    const current = parseInt(getComputedStyle(layout).getPropertyValue('--sidebar-w'), 10);
+    setSidebarWidth(current || SIDEBAR_DEFAULT, true);
+  };
+  handle.addEventListener('pointerup', stopDrag);
+  handle.addEventListener('pointercancel', stopDrag);
+  handle.addEventListener('dblclick', () => setSidebarWidth(SIDEBAR_DEFAULT, true));
+  handle.addEventListener('keydown', (e) => {
+    const current = parseInt(getComputedStyle(layout).getPropertyValue('--sidebar-w'), 10) || SIDEBAR_DEFAULT;
+    if (e.key === 'ArrowLeft') { setSidebarWidth(current - 16, true); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { setSidebarWidth(current + 16, true); e.preventDefault(); }
+    else if (e.key === 'Home') { setSidebarWidth(SIDEBAR_MIN, true); e.preventDefault(); }
+    else if (e.key === 'End') { setSidebarWidth(SIDEBAR_MAX, true); e.preventDefault(); }
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Selection                                                           */
 /* ------------------------------------------------------------------ */
@@ -395,6 +448,7 @@ function wire() {
   el('btn-help').onclick = () => toggleHelp(true);
   el('help-close').onclick = () => toggleHelp(false);
   el('help').onclick = (e) => { if (e.target === el('help')) toggleHelp(false); };
+  initSidebarResize();
 
   window.addEventListener('hashchange', () => { if (!suppressHash) readHash(); });
 
