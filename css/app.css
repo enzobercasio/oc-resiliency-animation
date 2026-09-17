@@ -88,6 +88,7 @@ body {
 .sidebar-foot code { font-family: var(--font-mono); font-size: 11px; }
 .sidebar-foot a { color: var(--accent); text-decoration: none; }
 .sidebar-foot a:hover { text-decoration: underline; }
+.sidebar-foot-links { font-size: 14px; }
 
 .anim-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .anim-list button {
