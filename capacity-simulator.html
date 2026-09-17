@@ -144,7 +144,7 @@
   }
   .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
   .card-head h2 { font-size: 1rem; font-weight: 700; }
-  .card-head .hint { font-size: 0.8rem; color: var(--ink-3); }
+  .card-head .hint, p.hint { font-size: 0.8rem; color: var(--ink-3); margin: 0; }
   .card.results { position: sticky; top: 86px; }
 
   /* ---------- form controls ---------- */
@@ -227,6 +227,24 @@
   .check span.detail { color: var(--ink-2); }
 
   footer.note { max-width: 68ch; margin: 28px auto 0; color: var(--ink-3); font-size: 0.82rem; padding-top: 18px; border-top: 1px solid var(--rule); }
+
+  /* ---------- code / terminal blocks (matches capacity-math.html) ---------- */
+  .code-block {
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+  }
+  .code-block .prompt { color: var(--accent); }
+  .code-block .comment { color: var(--ink-3); }
+  .code-block .cmd-label { display: block; color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
+  .code-block .cmd-label:first-child { margin-top: 0; }
+  .code-line { white-space: pre; }
+  .glossary-card { margin-top: 22px; }
 
   @media (max-width: 860px) {
     .grid { grid-template-columns: 1fr; }
@@ -355,6 +373,41 @@
         <div class="check" id="check-pdb"></div>
       </div>
     </div>
+  </div>
+
+  <div class="card glossary-card">
+    <div class="card-head">
+      <h2>Where these numbers come from</h2>
+      <span class="hint">the command for each field above, on a real cluster</span>
+    </div>
+    <div class="code-block">
+      <span class="cmd-label">Node capacity — the chip values, per node</span>
+      <div class="code-line"><span class="prompt">$</span> oc get nodes -o jsonpath=<span class="comment">'{range .items[*]}{.metadata.name}{"\t"}{.status.capacity.memory}{"\n"}{end}'</span></div>
+
+      <span class="cmd-label">System + kube reserved + eviction — §1</span>
+      <div class="code-line"><span class="prompt">$</span> oc get kubeletconfig -o yaml | grep -A5 systemReserved</div>
+
+      <span class="cmd-label">DaemonSet requests per node — §2</span>
+      <div class="code-line"><span class="prompt">$</span> oc get pods -A -o json | jq -r <span class="comment">'.items[] | select(.metadata.ownerReferences[]?.kind=="DaemonSet") |</span></div>
+      <div class="code-line">    .spec.nodeName + " " + .spec.containers[].resources.requests.memory<span class="comment">'</span></div>
+
+      <span class="cmd-label">maxUnavailable — §3, from the pool's MachineConfigPool</span>
+      <div class="code-line"><span class="prompt">$</span> oc get machineconfigpool worker -o jsonpath=<span class="comment">'{.spec.maxUnavailable}{"\n"}'</span></div>
+
+      <span class="cmd-label">Sum of non-DaemonSet requests — the Workload card</span>
+      <div class="code-line"><span class="prompt">$</span> oc get pods -A -o json | jq -r <span class="comment">'.items[] | select(.metadata.ownerReferences[]?.kind!="DaemonSet") |</span></div>
+      <div class="code-line">    .spec.containers[].resources.requests.memory<span class="comment">'</span>  # sum by hand, or the PromQL on the arithmetic page</div>
+
+      <span class="cmd-label">Largest single pod's request — §4, bin-packing check</span>
+      <div class="code-line"><span class="prompt">$</span> oc get pods -A -o json | jq -r <span class="comment">'.items[].spec.containers[].resources.requests.memory'</span> | sort -h | tail -1</div>
+
+      <span class="cmd-label">HPA-managed requests, current/min/max replicas</span>
+      <div class="code-line"><span class="prompt">$</span> oc get hpa -A -o custom-columns=<span class="comment">NS:.metadata.namespace,NAME:.metadata.name,CUR:.status.currentReplicas,MIN:.spec.minReplicas,MAX:.spec.maxReplicas</span></div>
+
+      <span class="cmd-label">PDB minAvailable floor</span>
+      <div class="code-line"><span class="prompt">$</span> oc get pdb -A -o custom-columns=<span class="comment">NS:.metadata.namespace,NAME:.metadata.name,MIN-AVAILABLE:.spec.minAvailable</span></div>
+    </div>
+    <p class="hint">Full derivation, worked example, and the fleet-wide PromQL version of these live in <a href="capacity-math.html" style="color:var(--accent)">the arithmetic</a>.</p>
   </div>
 
   <footer class="note">Models memory only — the same method applies to vCPU with its own reservation and request numbers. Nodes are assumed to already be Ready; this does not account for a node that is itself down in addition to the one being drained. See also <a href="capacity-math.html" style="color:var(--accent)">the worked-example write-up</a>.</footer>
