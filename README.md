@@ -50,6 +50,7 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 | **StatefulSets: when pods are not interchangeable** | Stable identity, ordered rollouts, and the volume attach that dominates stateful recovery time |
 | **PersistentVolumeClaims and PersistentVolumes: binding, zones, and reclaim** | How a claim becomes a volume, a binding-mode zone mismatch that strands a pod, and what reclaimPolicy does to the data |
 | **RHOCP upgrade flow: CVO, ClusterOperators, and the control plane** | The graph every other animation happens inside, the control plane's one-node-at-a-time rule, and a Degraded operator that freezes the whole upgrade |
+| **ROSA HCP upgrade flow: hosted control planes and NodePools** | The same upgrade, a hosted-control-plane architecture instead — the control plane rolling as pods you never see, NodePools versioning independently by design, and a NodePool left far enough behind that it blocks the control plane's own next upgrade |
 
 Each has 2–4 modes you switch between live, and they are ordered to build on
 each other — start at the top.

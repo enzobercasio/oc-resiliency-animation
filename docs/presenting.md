@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **79–91 minutes** for all sixteen, which is the right length
+Total runtime **85–97 minutes** for all seventeen, which is the right length
 for the concept half of a session before you move to the live cluster demo.
 
 ---
@@ -24,7 +24,8 @@ for the concept half of a session before you move to the live cluster demo.
       ScheduleAnyway-proceeds, when-it-never-recovers,
       preemption-bypasses-the-eviction-API,
       ClusterResourceOverride-rewrites-it, a-degraded-operator-blocks-everything,
-      reclaimPolicy-Retain, node-pressure and drain-with-a-volume modes.
+      reclaimPolicy-Retain, node-pressure, drain-with-a-volume and
+      version-skew-has-a-limit modes.
 - [ ] For a beginner audience, press **Beginner** (or `B`) before you start. The
       sidebar drops to the core eight and the advanced modes disappear from the
       tab rows, so there is nothing on screen to get asked about mid-session.
@@ -577,8 +578,10 @@ If the audience is past the core set, switch to **reclaimPolicy: Retain**
 
 Open: `#cluster-upgrade-flow/orchestration/0`
 
-The closer. Every animation today happened somewhere inside this process
-without naming it — this is the process.
+Every animation today happened somewhere inside this process without naming
+it — this is the process, for a self-managed cluster with its own master
+nodes. The next animation runs the identical upgrade through a completely
+different architecture.
 
 Play **CVO orchestrates the graph**. Land the closing frame:
 
@@ -612,10 +615,47 @@ If the audience is past the core set, switch to
 > machine-config and ingress never even get reached. The most common real
 > 'stuck upgrade' isn't a stuck node drain — it's exactly this."
 
+> "oc get clusteroperators is where you look before you look at a single
+> node. Everything else today was what happens after this graph clears —
+> as long as that node has a graph to clear at all."
+
+---
+
+### 17. ROSA HCP upgrade flow (6 min)
+
+Open: `#rosa-hcp-upgrade-flow/hosted-control-plane/0`
+
+The closer. Same upgrade, hosted-control-plane architecture instead — the
+direct counterpoint to what the room just watched.
+
+Play **Control plane lives elsewhere**. Land the closing frame:
+
+> "Four pods, not three master nodes. Compare that to the last animation:
+> there was never an etcd quorum to protect on your side, because there was
+> never a node to protect it on. This entire sequence just ran inside a
+> cluster Red Hat operates, not yours."
+
+Switch to **NodePools upgrade independently** (`2`):
+
+> "The control plane already moved. Your workers didn't — nothing about that
+> upgrade touched them. NodePool-a goes first, alone, and b and c sit on the
+> old version on purpose while it's watched."
+
+**Ask:** *"Do you canary a single NodePool before rolling an upgrade out to
+the rest of your fleet, or does everything move together today?"*
+
+If the audience is past the core set, switch to **Version skew has a limit**
+(`3`, marked advanced):
+
+> "NodePool-c never moved, and now the control plane itself refuses to go
+> again — not Degraded, not a stuck drain, just a skew policy saying the gap
+> got too wide. Decoupled versioning cuts both ways."
+
 Close the session on this line:
 
-> "oc get clusteroperators is where you look before you look at a single
-> node. Everything else today was what happens after this graph clears."
+> "Two architectures, one upgrade problem. If you only remember one thing:
+> ask which one you're actually running before you reach for either
+> animation's mental model."
 
 ---
 
@@ -667,6 +707,9 @@ for a platform team that owns the cluster, rolling update strategy and
 StatefulSets for application teams. The drain-with-a-volume mode of
 StatefulSets is marked advanced even within that group — it is the densest thing
 here and is safe to skip unless someone asks why stateful recovery is slow.
+The two upgrade-flow animations are a matched pair — run RHOCP alone for a
+self-managed audience, or both back to back for anyone deciding between
+self-managed and ROSA HCP.
 
 **5 minutes** — `#multi-replica/the-limit/0` played once, then
 `#upgrade-resiliency/d-full/0`. The first shows the problem, the second the fix.

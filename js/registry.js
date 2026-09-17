@@ -38,10 +38,16 @@
  * its direct sequel - how a claim actually becomes a volume, the same zone
  * story topology-spread told for compute told here for storage, and what a
  * claim's reclaimPolicy does to the data once the claim is gone.
- * cluster-upgrade-flow closes the set: the Cluster Version Operator layer
- * every other animation has been a part of without naming it, ending on the
- * one failure mode - a Degraded ClusterOperator - that stalls an upgrade
- * before a single node ever drains.
+ * cluster-upgrade-flow covers the Cluster Version Operator layer every other
+ * animation has been a part of without naming it, ending on the one failure
+ * mode - a Degraded ClusterOperator - that stalls an upgrade before a single
+ * node ever drains. rosa-hcp-upgrade-flow closes the set as its direct
+ * counterpoint - the same upgrade problem solved by a hosted-control-plane
+ * architecture instead: the control plane runs as pods in a Red Hat-managed
+ * hosting cluster rather than on customer-visible master nodes, NodePools
+ * version independently of that control plane by design, and the gotcha this
+ * decoupling creates when a NodePool falls behind far enough to block the
+ * control plane's own next upgrade.
  */
 import multiReplica from './animations/multi-replica.js';
 import podAffinity from './animations/pod-affinity.js';
@@ -58,6 +64,7 @@ import requestsLimits from './animations/requests-limits.js';
 import priorityPreemption from './animations/priority-preemption.js';
 import autoscaling from './animations/autoscaling.js';
 import clusterUpgradeFlow from './animations/cluster-upgrade-flow.js';
+import rosaHcpUpgradeFlow from './animations/rosa-hcp-upgrade-flow.js';
 import gracefulShutdown from './animations/graceful-shutdown.js';
 
 export const animations = [
@@ -79,4 +86,5 @@ export const animations = [
   statefulSets,
   pvcPv,
   clusterUpgradeFlow,
+  rosaHcpUpgradeFlow,
 ];
