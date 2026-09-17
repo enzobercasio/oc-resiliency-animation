@@ -55,10 +55,14 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 Each has 2–4 modes you switch between live, and they are ordered to build on
 each other — start at the top.
 
-The sidebar groups them into **Core** and **Going deeper**, and the **Beginner**
-toggle in the top bar narrows it to the core eight — a complete session on its
-own. An **advanced** pill on a mode tab marks a mode that is dense even for its
-group; beginner mode hides those too.
+The sidebar groups them into **Core** and **Going deeper**, with a third
+**Resources** group below for the capacity-planning tools and the demo video.
+The **Beginner** toggle in the top bar narrows it to the core eight — a
+complete session on its own. An **advanced** pill on a mode tab marks a mode
+that is dense even for its group; beginner mode hides those too.
+
+The sidebar itself is resizable — drag the handle at its right edge, double-click
+to reset, or focus it and use the arrow keys. The width persists between visits.
 
 Nothing is lost when the toggle is on: a button under the sidebar says how many
 animations are hidden and switches back, and a deep link into hidden material
@@ -93,8 +97,8 @@ outside this site.
 ## Demo video
 
 **[workload-resiliency-1.mp4](workload-resiliency-1.mp4)**, linked from the
-sidebar footer — a recorded walkthrough of the site for anyone who wants the
-tour without a live presenter.
+sidebar's **Resources** group — a recorded walkthrough of the site for anyone
+who wants the tour without a live presenter.
 
 ---
 
