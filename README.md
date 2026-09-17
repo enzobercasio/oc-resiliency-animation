@@ -96,7 +96,7 @@ outside this site.
 
 ## Demo video
 
-**[workload-resiliency-1.mp4](workload-resiliency-1.mp4)**, linked from the
+**[workload-resiliency-3.mp4](workload-resiliency-3.mp4)**, linked from the
 sidebar's **Resources** group — a recorded walkthrough of the site for anyone
 who wants the tour without a live presenter.
 
