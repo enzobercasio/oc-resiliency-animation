@@ -3,7 +3,7 @@
 The site is built to be driven live. This is the running order, the deep links to
 open on, and what to say over each animation.
 
-Total runtime **85–97 minutes** for all seventeen, which is the right length
+Total runtime **91–107 minutes** for all eighteen, which is the right length
 for the concept half of a session before you move to the live cluster demo.
 
 ---
@@ -438,7 +438,45 @@ does anyone know which teams' QoS classes it has quietly changed?"*
 
 ---
 
-### 12. MachineConfigPools (5 min)
+### 12. Node autoscaling: cluster autoscaler and Karpenter (6 min)
+
+Open: `#node-autoscaling/ca-scale-up/0`
+
+The direct sequel: HPA just added pods, and now there is nowhere to put them.
+
+Play **Cluster autoscaler: scale up**. Stop on the provisioning frame:
+
+> "Two pods have been Pending since the HPA acted, and they stay Pending
+> until this machine boots and joins. The autoscaler never looked at CPU —
+> it reacted to pods that didn't fit by their requests, and all it could do
+> was add one more node of the size someone picked for this MachineSet."
+
+Switch to **Cluster autoscaler: scale down** (`2`) and land the last frame:
+
+> "Scale-down needs low utilization *and* a new home for every pod. One
+> safe-to-evict annotation and this nearly empty node stays forever."
+
+**Ask:** *"Do you know which nodes your autoscaler has been trying to remove,
+and what has been stopping it?"*
+
+Switch to **Karpenter: right-sized nodes** (`3`):
+
+> "No node groups. Four pods Pending, one decision: which instance type, what
+> size, spot or on-demand — and one node that fits all four."
+
+If the audience is past the core set, switch to **Karpenter: consolidation**
+(`4`, marked advanced):
+
+> "Nothing was wrong with api-3. It moved because the cluster could be
+> cheaper. Consolidation is a disruption source that runs all day, which is
+> why budgets, PDBs and do-not-disrupt matter outside upgrade windows too."
+
+Check the Red Hat docs for Karpenter's support status on your platform
+before presenting it as an option for a specific customer.
+
+---
+
+### 13. MachineConfigPools (5 min)
 
 Open: `#machine-config-pools/serial/0`
 
@@ -468,7 +506,7 @@ the most commercially interesting five minutes of the session.
 
 ---
 
-### 13. Rolling update strategy (4 min)
+### 14. Rolling update strategy (4 min)
 
 Open: `#rollout-strategy/surge/0`
 
@@ -496,7 +534,7 @@ well as drains?"* Hands usually go up.
 
 ---
 
-### 14. StatefulSets (6 min)
+### 15. StatefulSets (6 min)
 
 Open: `#statefulsets/identity/0`
 
@@ -535,7 +573,7 @@ instinct of "one at a time is fine" can lose the cluster instead of degrading it
 
 ---
 
-### 15. PersistentVolumeClaims and PersistentVolumes (5 min)
+### 16. PersistentVolumeClaims and PersistentVolumes (5 min)
 
 Open: `#pvc-pv/dynamic-provisioning/0`
 
@@ -574,7 +612,7 @@ If the audience is past the core set, switch to **reclaimPolicy: Retain**
 
 ---
 
-### 16. RHOCP upgrade flow (6 min)
+### 17. RHOCP upgrade flow (6 min)
 
 Open: `#cluster-upgrade-flow/orchestration/0`
 
@@ -621,7 +659,7 @@ If the audience is past the core set, switch to
 
 ---
 
-### 17. ROSA HCP upgrade flow (6 min)
+### 18. ROSA HCP upgrade flow (6 min, 10 with the upgrade patterns)
 
 Open: `#rosa-hcp-upgrade-flow/hosted-control-plane/0`
 
@@ -650,6 +688,31 @@ If the audience is past the core set, switch to **Version skew has a limit**
 > "NodePool-c never moved, and now the control plane itself refuses to go
 > again — not Degraded, not a stuck drain, just a skew policy saying the gap
 > got too wide. Decoupled versioning cuts both ways."
+
+For a platform team choosing how to upgrade their workers, run the three
+pattern modes back to back — watch the **Worker nodes running** metric in
+each, because that is the cost side of the tradeoff.
+
+**In-place rolling** (`4`):
+
+> "One field on one pool. It never drops below three schedulable nodes, but
+> it goes one node at a time, and there's no second pool to fall back to
+> halfway through."
+
+**Blue-green pools** (`5`). Stop on the frame where blue is drained but still
+exists:
+
+> "This is what you're paying six nodes for. Rollback right now is uncordon
+> blue, drain green — minutes, not a reinstall."
+
+**Canary pool** (`6`). Stop on the soak frame:
+
+> "One node on the new version, serving real traffic. If this goes wrong,
+> one node's share of users noticed — the main pool was never asked to do
+> anything."
+
+**Ask:** *"Which of these three matches how you upgrade today — and is it
+the one you'd pick if you were starting over?"*
 
 Close the session on this line:
 

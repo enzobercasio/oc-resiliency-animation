@@ -34,7 +34,11 @@
  * follows it with the two controllers that rewrite requests-limits' numbers
  * automatically - HPA changes how many, VPA changes how much, running both
  * on the same metric fights, and ClusterResourceOverride can rewrite either
- * one before the scheduler ever sees the pod. pvc-pv follows statefulsets as
+ * one before the scheduler ever sees the pod. node-autoscaling is autoscaling's
+ * own sequel - HPA's new pods go Pending and something has to add a node: the
+ * cluster autoscaler growing a fixed-size MachineSet, Karpenter launching a
+ * right-sized instance per batch, and both removing nodes again, which is a
+ * disruption source of its own. pvc-pv follows statefulsets as
  * its direct sequel - how a claim actually becomes a volume, the same zone
  * story topology-spread told for compute told here for storage, and what a
  * claim's reclaimPolicy does to the data once the claim is gone.
@@ -47,7 +51,8 @@
  * hosting cluster rather than on customer-visible master nodes, NodePools
  * version independently of that control plane by design, and the gotcha this
  * decoupling creates when a NodePool falls behind far enough to block the
- * control plane's own next upgrade.
+ * control plane's own next upgrade - then compares the three worker upgrade
+ * patterns node by node: in-place rolling, blue-green pools, and canary.
  */
 import multiReplica from './animations/multi-replica.js';
 import podAffinity from './animations/pod-affinity.js';
@@ -63,6 +68,7 @@ import pvcPv from './animations/pvc-pv.js';
 import requestsLimits from './animations/requests-limits.js';
 import priorityPreemption from './animations/priority-preemption.js';
 import autoscaling from './animations/autoscaling.js';
+import nodeAutoscaling from './animations/node-autoscaling.js';
 import clusterUpgradeFlow from './animations/cluster-upgrade-flow.js';
 import rosaHcpUpgradeFlow from './animations/rosa-hcp-upgrade-flow.js';
 import gracefulShutdown from './animations/graceful-shutdown.js';
@@ -81,6 +87,7 @@ export const animations = [
   requestsLimits,
   priorityPreemption,
   autoscaling,
+  nodeAutoscaling,
   machineConfigPools,
   rolloutStrategy,
   statefulSets,

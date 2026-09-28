@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bare-Metal Capacity Simulator</title>
-<meta name="description" content="An interactive drain-capacity calculator for bare-metal RHOCP pools: edit the node pool, workload requests, and HPA settings and watch the utilization verdict update live.">
+<title>Upgrade Capacity Simulator</title>
+<meta name="description" content="An interactive drain-capacity calculator for bare-metal RHOCP and ROSA HCP worker pools: edit the node pool, workload requests, surge and HPA settings and watch the utilization verdict update live.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root {
@@ -129,6 +129,24 @@
 
   header.intro { padding-block: 26px 8px; display: flex; flex-direction: column; gap: 8px; max-width: 68ch; }
   header.intro p { color: var(--ink-2); margin: 0; font-size: 0.98rem; }
+
+  /* ---------- platform switch ---------- */
+  body[data-platform="bm"] [data-only="rosa"],
+  body[data-platform="rosa"] [data-only="bm"] { display: none !important; }
+  .platform { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .platform .platform-label { font-size: 0.8rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    font: inherit; font-size: 0.86rem; font-weight: 500; background: var(--surface); color: var(--ink-2);
+    border: none; padding: 7px 14px; cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--rule-strong); }
+  .seg button[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .seg button:focus-visible { outline: none; box-shadow: var(--focus); }
+  .platform .platform-hint { font-size: 0.82rem; color: var(--ink-3); flex-basis: 100%; }
+  .chip.surge { border-style: dashed; border-color: var(--accent); background: var(--accent-soft); }
+  .chip.surge .chip-label { color: var(--accent); }
+  .chip .chip-static { font-family: "IBM Plex Mono", monospace; font-size: 0.86rem; padding: 4px 2px; }
 
   /* ---------- layout ---------- */
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 22px; margin-top: 22px; align-items: start; }
@@ -257,7 +275,7 @@
   }
 </style>
 </head>
-<body>
+<body data-platform="bm">
 
 <p class="crosslink">← <a href="index.html">Animated explainers</a> · <a href="capacity-math.html">The arithmetic</a></p>
 
@@ -280,6 +298,15 @@
 
   <header class="intro">
     <p>Type your pool's real numbers in. This applies the four refinements — allocatable not capacity, DaemonSets subtracted from availability not added to demand, the largest nodes removed rather than an average node, and a bin-packing check — plus the HPA correction, live.</p>
+    <div class="platform">
+      <span class="platform-label">Platform</span>
+      <div class="seg" role="radiogroup" aria-label="Platform">
+        <button type="button" role="radio" id="btn-platform-bm" data-platform="bm">Bare-metal RHOCP</button>
+        <button type="button" role="radio" id="btn-platform-rosa" data-platform="rosa">ROSA HCP</button>
+      </div>
+      <span class="platform-hint" data-only="bm">No spare hardware to surge onto: every node that drains is capacity the pool loses until it comes back.</span>
+      <span class="platform-hint" data-only="rosa">Nodes are replaced, not rebooted: with maxSurge a new instance is Ready before an old one drains, so the roll can keep full capacity. The limit moves to node quota, cost and time.</span>
+    </div>
   </header>
 
   <div class="grid">
@@ -295,7 +322,7 @@
         <hr class="sep">
         <div class="field-row">
           <label class="field" for="in-reserved">
-            <span class="field-name">System + kube reserved + eviction<span class="sub">§1 — per node, subtracted from allocatable</span></span>
+            <span class="field-name">System + kube reserved + eviction<span class="sub" data-only="bm">§1 — per node, subtracted from allocatable</span><span class="sub" data-only="rosa">§1 — set by Red Hat per instance type; read it off allocatable</span></span>
             <span class="field-input"><input type="number" id="in-reserved" min="0" step="0.5" value="7"><span class="unit">GiB</span></span>
           </label>
           <label class="field" for="in-daemonset">
@@ -303,8 +330,16 @@
             <span class="field-input"><input type="number" id="in-daemonset" min="0" step="0.5" value="5"><span class="unit">GiB</span></span>
           </label>
           <label class="field" for="in-maxunavail">
-            <span class="field-name">maxUnavailable<span class="sub">§3 — the N largest nodes come out first</span></span>
+            <span class="field-name">maxUnavailable<span class="sub" data-only="bm">§3 — the N largest nodes come out first</span><span class="sub" data-only="rosa">§3 — machine pool setting; 0 is valid when maxSurge ≥ 1</span></span>
             <span class="field-input"><input type="number" id="in-maxunavail" min="0" step="1" value="1"><span class="unit">nodes</span></span>
+          </label>
+          <label class="field" for="in-maxsurge-nodes" data-only="rosa">
+            <span class="field-name">Node maxSurge<span class="sub">machine pool setting — new nodes provisioned before old ones drain</span></span>
+            <span class="field-input"><input type="number" id="in-maxsurge-nodes" min="0" step="1" value="1"><span class="unit">nodes</span></span>
+          </label>
+          <label class="field" for="in-quota-nodes" data-only="rosa">
+            <span class="field-name">Node quota headroom<span class="sub">most nodes this pool may reach — EC2 quota, subnet IPs, pool max</span></span>
+            <span class="field-input"><input type="number" id="in-quota-nodes" min="1" step="1" value="8"><span class="unit">nodes</span></span>
           </label>
         </div>
       </div>
@@ -313,7 +348,7 @@
         <div class="card-head"><h2>Workload</h2></div>
         <div class="field-row">
           <label class="field" for="in-requests">
-            <span class="field-name">Sum of non-DaemonSet requests<span class="sub">whole pool, today</span></span>
+            <span class="field-name">Sum of non-DaemonSet requests<span class="sub" data-only="bm">whole pool, today</span><span class="sub" data-only="rosa">whole pool, today — include router, monitoring and registry pods if they run on these workers</span></span>
             <span class="field-input"><input type="number" id="in-requests" min="0" step="1" value="220"><span class="unit">GiB</span></span>
           </label>
           <label class="field" for="in-surge">
@@ -368,6 +403,7 @@
           <div class="meter" id="meter"><div class="meter-fill" id="meter-fill"></div><div class="meter-target" style="left:68%"></div></div>
         </div>
 
+        <div class="check" id="check-quota" data-only="rosa"></div>
         <div class="check" id="check-binpack"></div>
         <div class="check" id="check-hpa"></div>
         <div class="check" id="check-pdb"></div>
@@ -384,15 +420,22 @@
       <span class="cmd-label">Node capacity — the chip values, per node</span>
       <div class="code-line"><span class="prompt">$</span> oc get nodes -o jsonpath=<span class="comment">'{range .items[*]}{.metadata.name}{"\t"}{.status.capacity.memory}{"\n"}{end}'</span></div>
 
-      <span class="cmd-label">System + kube reserved + eviction — §1</span>
-      <div class="code-line"><span class="prompt">$</span> oc get kubeletconfig -o yaml | grep -A5 systemReserved</div>
+      <span class="cmd-label" data-only="bm">System + kube reserved + eviction — §1</span>
+      <div class="code-line" data-only="bm"><span class="prompt">$</span> oc get kubeletconfig -o yaml | grep -A5 systemReserved</div>
+      <span class="cmd-label" data-only="rosa">System + kube reserved + eviction — §1, as capacity minus allocatable</span>
+      <div class="code-line" data-only="rosa"><span class="prompt">$</span> oc get nodes -o custom-columns=<span class="comment">NAME:.metadata.name,CAP:.status.capacity.memory,ALLOC:.status.allocatable.memory</span></div>
 
       <span class="cmd-label">DaemonSet requests per node — §2</span>
       <div class="code-line"><span class="prompt">$</span> oc get pods -A -o json | jq -r <span class="comment">'.items[] | select(.metadata.ownerReferences[]?.kind=="DaemonSet") |</span></div>
       <div class="code-line">    .spec.nodeName + " " + .spec.containers[].resources.requests.memory<span class="comment">'</span></div>
 
-      <span class="cmd-label">maxUnavailable — §3, from the pool's MachineConfigPool</span>
-      <div class="code-line"><span class="prompt">$</span> oc get machineconfigpool worker -o jsonpath=<span class="comment">'{.spec.maxUnavailable}{"\n"}'</span></div>
+      <span class="cmd-label" data-only="bm">maxUnavailable — §3, from the pool's MachineConfigPool</span>
+      <div class="code-line" data-only="bm"><span class="prompt">$</span> oc get machineconfigpool worker -o jsonpath=<span class="comment">'{.spec.maxUnavailable}{"\n"}'</span></div>
+      <span class="cmd-label" data-only="rosa">maxSurge / maxUnavailable — §3, from the machine pool (no MachineConfigPools in a hosted cluster)</span>
+      <div class="code-line" data-only="rosa"><span class="prompt">$</span> rosa describe machinepool -c my-cluster workers  <span class="comment"># upgrade settings, replicas, instance type</span></div>
+
+      <span class="cmd-label" data-only="rosa">Node quota headroom — EC2 On-Demand standard vCPU quota; divide by vCPUs per instance</span>
+      <div class="code-line" data-only="rosa"><span class="prompt">$</span> aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A</div>
 
       <span class="cmd-label">Sum of non-DaemonSet requests — the Workload card</span>
       <div class="code-line"><span class="prompt">$</span> oc get pods -A -o json | jq -r <span class="comment">'.items[] | select(.metadata.ownerReferences[]?.kind!="DaemonSet") |</span></div>
@@ -410,7 +453,7 @@
     <p class="hint">Full derivation, worked example, and the fleet-wide PromQL version of these live in <a href="capacity-math.html" style="color:var(--accent)">the arithmetic</a>.</p>
   </div>
 
-  <footer class="note">Models memory only — the same method applies to vCPU with its own reservation and request numbers. Nodes are assumed to already be Ready; this does not account for a node that is itself down in addition to the one being drained. See also <a href="capacity-math.html" style="color:var(--accent)">the worked-example write-up</a>.<br><br>This is a simplified model for illustration. Always consult the <a href="https://kubernetes.io/docs/home/" target="_blank" rel="noopener" style="color:var(--accent)">official Kubernetes documentation</a> (and the OpenShift docs) to verify current features and behavior before relying on these numbers.</footer>
+  <footer class="note">Models memory only — the same method applies to vCPU with its own reservation and request numbers. Nodes are assumed to already be Ready; this does not account for a node that is itself down in addition to the one being drained. In ROSA HCP mode, surge nodes are assumed to be the pool's largest instance size and to become Ready before any old node drains; machine-pool autoscaling is not modelled. See also <a href="capacity-math.html" style="color:var(--accent)">the worked-example write-up</a>.<br><br>This is a simplified model for illustration. Always consult the <a href="https://kubernetes.io/docs/home/" target="_blank" rel="noopener" style="color:var(--accent)">official Kubernetes documentation</a> (and the OpenShift docs) to verify current features and behavior before relying on these numbers.</footer>
 
 </div>
 
@@ -429,8 +472,12 @@
     hpaCurrent: 20,
     hpaMax: 40,
     hpaMin: 20,
-    pdbFloor: 2
+    pdbFloor: 2,
+    platform: "bm",
+    maxSurgeNodes: 1,
+    quotaNodes: 8
   };
+  var DEFAULT_MAXUNAVAIL = { bm: 1, rosa: 0 };
 
   var state = null;
   var STORE_KEY = "bm-capacity-sim-v1";
@@ -440,7 +487,9 @@
       var raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length) return parsed;
+        if (parsed && Array.isArray(parsed.nodes) && parsed.nodes.length) {
+          return Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), parsed);
+        }
       }
     } catch (e) { /* private mode or corrupt data - fall through */ }
     return JSON.parse(JSON.stringify(DEFAULTS));
@@ -475,6 +524,18 @@
         (state.nodes.length > 1 ? '<div class="rm" data-idx="' + i + '" title="Remove node">×</div>' : "");
       list.appendChild(chip);
     });
+
+    if (state.platform === "rosa") {
+      var surgeSize = Math.max.apply(null, state.nodes);
+      for (var s = 0; s < state.maxSurgeNodes; s++) {
+        var ghost = document.createElement("div");
+        ghost.className = "chip surge";
+        ghost.title = "Temporary node, created at the new version before an old node drains";
+        ghost.innerHTML = '<span class="chip-label">Surge +' + (s + 1) + '</span>' +
+          '<span class="chip-static">' + surgeSize + '</span><span class="chip-unit">GiB</span>';
+        list.appendChild(ghost);
+      }
+    }
 
     var add = document.createElement("button");
     add.type = "button";
@@ -531,6 +592,10 @@
     state.hpaMax = Math.max(1, +el("in-hpa-max").value || 1);
     state.hpaMin = +el("in-hpa-min").value || 0;
     state.pdbFloor = +el("in-pdb-floor").value || 0;
+    var rosa = state.platform === "rosa";
+    var maxSurgeNodes = Math.max(0, Math.round(+el("in-maxsurge-nodes").value || 0));
+    var quotaNodes = Math.max(1, Math.round(+el("in-quota-nodes").value || 1));
+    state.maxSurgeNodes = maxSurgeNodes; state.quotaNodes = quotaNodes;
 
     el("hpa-fields").style.opacity = state.hpaEnabled ? "1" : "0.4";
     el("hpa-fields").style.pointerEvents = state.hpaEnabled ? "auto" : "none";
@@ -549,10 +614,15 @@
     var pillEl = el("out-pill");
     pillEl.className = "pill " + v.cls;
     el("out-pill-label").textContent = v.label;
-    el("out-detail").innerHTML = surviving.length + " of " + state.nodes.length + ' nodes surviving · <span class="num">' + fmt(required) + ' GiB</span> required of <span class="num">' + fmt(available) + ' GiB</span> available';
+    var peakNodes = state.nodes.length + (rosa ? maxSurgeNodes : 0);
+    el("out-detail").innerHTML = surviving.length + " of " + state.nodes.length + (rosa ? " nodes schedulable · peak " + peakNodes + " nodes" : " nodes surviving") +
+      ' · <span class="num">' + fmt(required) + ' GiB</span> required of <span class="num">' + fmt(available) + ' GiB</span> available';
 
     var ledger = "";
-    ledger += ledgerRow("Nodes in pool", state.nodes.length + (maxUnavail ? " (−" + maxUnavail + " largest, §3)" : ""));
+    var nodeNote = [];
+    if (rosa && maxSurgeNodes) nodeNote.push("+" + maxSurgeNodes + " surge");
+    if (maxUnavail) nodeNote.push("−" + maxUnavail + (rosa ? " unavailable" : " largest") + ", §3");
+    ledger += ledgerRow("Nodes in pool", state.nodes.length + (nodeNote.length ? " (" + nodeNote.join(", ") + ")" : ""));
     ledger += ledgerRow("Allocatable per surviving node", surviving.length ? surviving.map(function (c) { return fmt(c - reserved); }).join(", ") + " GiB" : "—");
     ledger += ledgerRow("Less DaemonSet requests", "−" + fmt(daemonset) + " GiB / node");
     ledger += ledgerRow("Available to workloads", fmt(available) + " GiB", { total: false });
@@ -564,6 +634,19 @@
     var pct = isFinite(utilization) ? Math.min(125, utilization * 100) : 125;
     fill.style.width = (pct / 1.25) + "%";
     fill.style.background = "var(--" + v.cls + ")";
+
+    if (rosa) {
+      var qb = el("check-quota");
+      var stuck = maxSurgeNodes === 0 && maxUnavail === 0;
+      var overQuota = peakNodes > quotaNodes;
+      qb.className = "check " + (stuck || overQuota ? "bad" : "good");
+      qb.innerHTML = '<span class="dot"></span><span><b>' +
+        (stuck ? "maxSurge and maxUnavailable are both 0 — the roll can never start"
+          : overQuota ? "Peak node count exceeds the quota headroom"
+          : "Peak node count fits the quota headroom") + '</b>' +
+        '<span class="detail">' + peakNodes + ' nodes at peak (' + state.nodes.length + ' + ' + maxSurgeNodes + ' surge) vs ' + quotaNodes + ' allowed' +
+        (overQuota ? ' — surge instances will fail to launch and the roll waits' : ' — the surge nodes are also what you pay extra for during the window') + '</span></span>';
+    }
 
     var largestRemaining = surviving.length ? perNode(surviving[0]) : 0;
     var fits = largestPod <= largestRemaining;
@@ -610,17 +693,48 @@
     el("in-hpa-max").value = state.hpaMax;
     el("in-hpa-min").value = state.hpaMin;
     el("in-pdb-floor").value = state.pdbFloor;
+    el("in-maxsurge-nodes").value = state.maxSurgeNodes;
+    el("in-quota-nodes").value = state.quotaNodes;
+    applyPlatform();
     renderNodes();
   }
 
-  ["in-reserved", "in-daemonset", "in-maxunavail", "in-requests", "in-surge", "in-largestpod",
-   "in-hpa-managed", "in-hpa-current", "in-hpa-max", "in-hpa-min", "in-pdb-floor"].forEach(function (id) {
+  function applyPlatform() {
+    document.body.dataset.platform = state.platform;
+    ["bm", "rosa"].forEach(function (p) {
+      el("btn-platform-" + p).setAttribute("aria-checked", String(state.platform === p));
+    });
+  }
+
+  function setPlatform(p) {
+    if (p === state.platform) return;
+    // Carry a customised maxUnavailable across; only swap the platform's own default.
+    if (state.maxUnavailable === DEFAULT_MAXUNAVAIL[state.platform]) {
+      state.maxUnavailable = DEFAULT_MAXUNAVAIL[p];
+      el("in-maxunavail").value = state.maxUnavailable;
+    }
+    state.platform = p;
+    applyPlatform();
+    compute();
+    renderNodes();
+  }
+
+  ["in-reserved", "in-daemonset", "in-requests", "in-surge", "in-largestpod",
+   "in-hpa-managed", "in-hpa-current", "in-hpa-max", "in-hpa-min", "in-pdb-floor", "in-quota-nodes"].forEach(function (id) {
     el(id).addEventListener("input", compute);
   });
+  ["in-maxunavail", "in-maxsurge-nodes"].forEach(function (id) {
+    el(id).addEventListener("input", function () { compute(); renderNodes(); });
+  });
   el("in-hpa-enabled").addEventListener("change", compute);
+  el("btn-platform-bm").addEventListener("click", function () { setPlatform("bm"); });
+  el("btn-platform-rosa").addEventListener("click", function () { setPlatform("rosa"); });
 
   el("btn-reset").addEventListener("click", function () {
+    var platform = state.platform;
     state = JSON.parse(JSON.stringify(DEFAULTS));
+    state.platform = platform;
+    state.maxUnavailable = DEFAULT_MAXUNAVAIL[platform];
     applyStateToInputs();
     compute();
   });

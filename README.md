@@ -45,12 +45,13 @@ but any static server works. `python3 -m http.server` is all `serve.sh` does.
 | **Requests and limits: reservation vs ceiling** | QoS classes, kubelet eviction order under node pressure, and why a drained pod can fail to fit |
 | **PriorityClass and preemption: who gets to keep the room** | A pod that preempts a lower-priority one to fit, and a PodDisruptionBudget that preemption never consults |
 | **HPA, VPA, and ClusterResourceOverride** | Horizontal scales how many, vertical scales how much, running both fights, and an admission webhook can rewrite either one |
+| **Node autoscaling: cluster autoscaler and Karpenter** | Pending pods trigger the cluster autoscaler to grow a fixed-size MachineSet, scale-down removes an underused node until a safe-to-evict annotation pins one, Karpenter launches a right-sized instance per batch, and consolidation moves pods to cut cost |
 | **MachineConfigPools: how many nodes at once** | Pool concurrency and custom pools — the cluster-level control that sets the shape of the upgrade |
 | **Rolling update: maxSurge vs maxUnavailable** | A Deployment replacing its own pods, and why a PDB has nothing to do with it |
 | **StatefulSets: when pods are not interchangeable** | Stable identity, ordered rollouts, and the volume attach that dominates stateful recovery time |
 | **PersistentVolumeClaims and PersistentVolumes: binding, zones, and reclaim** | How a claim becomes a volume, a binding-mode zone mismatch that strands a pod, and what reclaimPolicy does to the data |
 | **RHOCP upgrade flow: CVO, ClusterOperators, and the control plane** | The graph every other animation happens inside, the control plane's one-node-at-a-time rule, and a Degraded operator that freezes the whole upgrade |
-| **ROSA HCP upgrade flow: hosted control planes and NodePools** | The same upgrade, a hosted-control-plane architecture instead — the control plane rolling as pods you never see, NodePools versioning independently by design, and a NodePool left far enough behind that it blocks the control plane's own next upgrade |
+| **ROSA HCP upgrade flow: hosted control planes and NodePools** | The same upgrade, a hosted-control-plane architecture instead — the control plane rolling as pods you never see, NodePools versioning independently by design, a NodePool left far enough behind that it blocks the control plane's own next upgrade, and three worker upgrade patterns compared node by node — in-place rolling, blue-green pools, and a canary pool |
 
 Each has 2–4 modes you switch between live, and they are ordered to build on
 each other — start at the top.
@@ -85,8 +86,10 @@ they live outside the registry:
 - **[capacity-simulator.html](capacity-simulator.html)** — the interactive
   version. Edit an actual node pool (add, remove, resize), the workload
   requests, and the HPA/PDB settings, and the utilization verdict, bin-packing
-  check, and maxReplicas-adjusted check all recompute live. Inputs persist
-  per-browser via `localStorage`.
+  check, and maxReplicas-adjusted check all recompute live. A platform toggle
+  switches between bare-metal RHOCP (a draining node is lost capacity) and
+  ROSA HCP (surge nodes keep capacity; adds node maxSurge, a node-quota check,
+  and ROSA-specific commands). Inputs persist per-browser via `localStorage`.
 
 Both are self-contained (their own fonts, styles, and script — no dependency
 on `js/player.js` or the registry) so they work as standalone links even
