@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { animations } from '../js/registry.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const files = ['README.md', 'docs/presenting.md', 'docs/deploying.md', 'docs/authoring-animations.md'];
+const files = ['README.md', 'docs/presenting.md', 'docs/deploying.md', 'docs/authoring-animations.md', 'antipatterns.html'];
 
 let fail = 0;
 let checked = 0;

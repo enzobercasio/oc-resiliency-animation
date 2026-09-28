@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resiliency Anti-patterns</title>
+<meta name="description" content="A field guide to common OpenShift workload resiliency anti-patterns: why each one hurts, the command that finds it on a real cluster, and how to fix it.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f9f9f7;
+    --surface: #fcfcfb;
+    --surface-2: #f1f0ec;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-3: #898781;
+    --rule: rgba(11, 11, 11, 0.13);
+    --rule-strong: rgba(11, 11, 11, 0.28);
+    --accent: #2a78d6;
+    --accent-soft: #eaf2fc;
+    --warn: #b5790a;
+    --warn-soft: #fff3dc;
+    --bad: #d03b3b;
+    --bad-soft: #fbe9e8;
+    --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
+    --focus: 0 0 0 3px rgba(42, 120, 214, 0.28);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d0d0d;
+      --surface: #1a1a19;
+      --surface-2: #222220;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --ink-3: #898781;
+      --rule: rgba(255, 255, 255, 0.14);
+      --rule-strong: rgba(255, 255, 255, 0.28);
+      --accent: #3987e5;
+      --accent-soft: #142235;
+      --warn: #fab219;
+      --warn-soft: #2b2211;
+      --bad: #e25555;
+      --bad-soft: #2a1615;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #222220;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #898781;
+    --rule: rgba(255, 255, 255, 0.14);
+    --rule-strong: rgba(255, 255, 255, 0.28);
+    --accent: #3987e5;
+    --accent-soft: #142235;
+    --warn: #fab219;
+    --warn-soft: #2b2211;
+    --bad: #e25555;
+    --bad-soft: #2a1615;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 28px 16px 72px;
+  }
+  h1, h2, h3 { font-family: "Archivo", system-ui, sans-serif; text-wrap: balance; margin: 0; }
+  code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.88em; }
+  a { color: var(--accent); }
+  ::selection { background: var(--accent-soft); }
+
+  .sheet { max-width: 860px; margin: 0 auto; }
+  .crosslink { max-width: 860px; margin: 0 auto 32px; font-size: 0.85rem; color: var(--ink-3); }
+  .crosslink a { text-decoration: none; }
+  .crosslink a:hover { text-decoration: underline; }
+
+  header.top { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+  h1 { font-size: 2.15rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.12; }
+  .dek { color: var(--ink-2); margin: 0; max-width: 68ch; }
+
+  /* ---------- toolbar ---------- */
+  .toolbar {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg); padding: 12px 0; margin-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .filter { display: flex; align-items: center; gap: 10px; }
+  .filter input {
+    flex: 1; min-width: 0;
+    font: inherit; font-size: 0.95rem;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--rule-strong); border-radius: 8px; padding: 9px 12px;
+  }
+  .filter input:focus { outline: none; box-shadow: var(--focus); border-color: var(--accent); }
+  .filter .count { font-size: 0.82rem; color: var(--ink-3); white-space: nowrap; }
+  .jump { display: flex; flex-wrap: wrap; gap: 6px; }
+  .jump a {
+    font-size: 0.8rem; text-decoration: none; color: var(--ink-2);
+    border: 1px solid var(--rule-strong); border-radius: 999px; padding: 3px 11px; background: var(--surface);
+  }
+  .jump a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ---------- sections and entries ---------- */
+  section.cat { margin-top: 34px; scroll-margin-top: 120px; }
+  section.cat > h2 { font-size: 1.35rem; font-weight: 700; margin-bottom: 4px; }
+  section.cat > p.cat-dek { color: var(--ink-3); font-size: 0.9rem; margin: 0 0 14px; }
+
+  article.ap {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px 20px;
+    margin-bottom: 14px;
+    scroll-margin-top: 120px;
+  }
+  .ap-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .ap-head h3 { font-size: 1.08rem; font-weight: 700; line-height: 1.3; }
+  .tag {
+    flex: none; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em;
+    padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .tag.outage { background: var(--bad-soft); color: var(--bad); }
+  .tag.stall { background: var(--warn-soft); color: var(--warn); }
+  .tag.drift { background: var(--accent-soft); color: var(--accent); }
+
+  .row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 4px 14px; margin-top: 10px; }
+  .row > .k { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); padding-top: 3px; }
+  .row > .v { font-size: 0.94rem; color: var(--ink-2); min-width: 0; }
+  .row > .v p { margin: 0; }
+  .row > .v p + p { margin-top: 6px; }
+
+  .code-wrap { position: relative; }
+  .code-wrap + .code-wrap { margin-top: 6px; }
+  .code {
+    background: var(--surface-2); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 12px 14px; padding-right: 64px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.65;
+    white-space: pre; overflow-x: auto; color: var(--ink);
+  }
+  .copy {
+    position: absolute; top: 7px; right: 7px;
+    font: inherit; font-family: "IBM Plex Sans", sans-serif; font-size: 0.72rem; font-weight: 500;
+    background: var(--surface); color: var(--ink-2);
+    border: 1px solid var(--rule-strong); border-radius: 5px; padding: 3px 8px; cursor: pointer;
+  }
+  .copy:hover { color: var(--accent); border-color: var(--accent); }
+  .see a { text-decoration: none; }
+  .see a:hover { text-decoration: underline; }
+  .see a + a::before { content: "·"; color: var(--ink-3); margin: 0 8px; }
+
+  .empty { color: var(--ink-3); text-align: center; padding: 40px 0; }
+
+  footer { margin-top: 40px; color: var(--ink-3); font-size: 0.85rem; border-top: 1px solid var(--rule); padding-top: 20px; }
+  footer a { color: var(--accent); }
+
+  @media (max-width: 560px) {
+    h1 { font-size: 1.7rem; }
+    .row { grid-template-columns: 1fr; }
+    .row > .k { padding-top: 6px; }
+    .ap-head { flex-direction: column; gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<p class="crosslink">← <a href="index.html">Animated explainers</a> · <a href="capacity-math.html">The arithmetic</a> · <a href="capacity-simulator.html">Capacity simulator</a></p>
+
+<div class="sheet">
+
+  <header class="top">
+    <div class="eyebrow">Field guide</div>
+    <h1>Resiliency anti-patterns: how to find them and fix them</h1>
+    <p class="dek">Each anti-pattern below is one the animations demonstrate. Each entry says why it hurts, gives a command that finds it on a real cluster, explains the fix, and links to the animation that shows it happening. The commands need <code>oc</code> and <code>jq</code> and are read-only.</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="filter">
+      <input type="search" id="filter" placeholder="Filter — e.g. PDB, drain, Pending, storage" aria-label="Filter anti-patterns">
+      <span class="count" id="count"></span>
+    </div>
+    <nav class="jump" aria-label="Categories">
+      <a href="#placement">Placement</a>
+      <a href="#disruption">Disruption budgets</a>
+      <a href="#probes">Probes &amp; shutdown</a>
+      <a href="#resources">Resources &amp; autoscaling</a>
+      <a href="#priority">Priority</a>
+      <a href="#storage">Storage</a>
+      <a href="#upgrades">Upgrades</a>
+      <a href="#nodes">Node autoscaling</a>
+    </nav>
+  </div>
+
+  <!-- ================================================================ -->
+  <section class="cat" id="placement">
+    <h2>Placement and replicas</h2>
+    <p class="cat-dek">Where replicas run decides how much one node or zone failure costs.</p>
+
+    <article class="ap" id="single-replica">
+      <div class="ap-head"><h3>One replica, or several replicas with nothing keeping them apart</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>A single replica is down for every drain, reboot and crash. Several replicas with no spread constraint can still be bin-packed onto one node, so losing that node takes them all.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get deploy,statefulset -A -o json | jq -r '.items[]
+  | select(.spec.replicas &lt; 2)
+  | "\(.kind) \(.metadata.namespace)/\(.metadata.name)"'</div>
+<div class="code">oc get deploy -A -o json | jq -r '.items[]
+  | select(.spec.replicas &gt;= 2)
+  | select(.spec.template.spec.topologySpreadConstraints == null
+      and .spec.template.spec.affinity.podAntiAffinity == null)
+  | "\(.metadata.namespace)/\(.metadata.name)"'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Run at least two replicas for anything user-facing, and add a <code>topologySpreadConstraints</code> entry on <code>kubernetes.io/hostname</code> (and on <code>topology.kubernetes.io/zone</code> when you span zones).</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#multi-replica/the-limit/0">Multi-replica: where it stops</a><a href="index.html#upgrade-resiliency/a-none/0">Rolling upgrade: neither</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="required-no-room">
+      <div class="ap-head"><h3>Hard placement rules with nowhere left to go</h3><span class="tag stall">Stalls upgrades</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p><code>requiredDuringScheduling</code> anti-affinity or <code>whenUnsatisfiable: DoNotSchedule</code> leaves pods Pending rather than bending the rule. During a drain the displaced replica has nowhere legal to land, and the drain waits on it.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get pods -A --field-selector=status.phase=Pending</div>
+<div class="code">oc get events -A --field-selector reason=FailedScheduling \
+  | grep -Ei 'affinity|topology spread'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Use <code>preferredDuringScheduling</code> or <code>ScheduleAnyway</code> unless spreading is truly mandatory. If it is mandatory, keep more eligible nodes (or zones) than replicas so there is always somewhere to go.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#pod-affinity/stuck/0">When required has no room</a><a href="index.html#topology-spread/hard-limit/0">DoNotSchedule blocks</a></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================================================================ -->
+  <section class="cat" id="disruption">
+    <h2>Disruption budgets</h2>
+    <p class="cat-dek">A PodDisruptionBudget controls how fast voluntary evictions can take replicas away. Too strict and nothing can move; missing and everything can.</p>
+
+    <article class="ap" id="pdb-deadlock">
+      <div class="ap-head"><h3>minAvailable equal to the replica count</h3><span class="tag stall">Stalls upgrades</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>The budget allows zero disruptions, so no eviction can ever succeed. A node drain waits on it indefinitely and the whole MachineConfigPool rollout stops on that node.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get pdb -A -o json | jq -r '.items[]
+  | select(.status.disruptionsAllowed == 0)
+  | "\(.metadata.namespace)/\(.metadata.name)  expected=\(.status.expectedPods)"'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Prefer <code>maxUnavailable: 1</code>, which keeps working as the workload scales. If you must use <code>minAvailable</code>, keep it below the replica count.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#pod-disruption-budget/deadlock/0">minAvailable = replicas: deadlock</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="no-pdb">
+      <div class="ap-head"><h3>No PodDisruptionBudget at all</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>Nothing limits how fast a drain evicts. With <code>maxUnavailable: 2</code> on the pool, or two drains running at once, every replica can be evicted in the same window, even if they are well spread.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code"># namespaces that run Deployments but have no PDB
+comm -23 \
+  &lt;(oc get deploy -A --no-headers | awk '{print $1}' | sort -u) \
+  &lt;(oc get pdb -A --no-headers | awk '{print $1}' | sort -u)</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Add a PDB with <code>maxUnavailable: 1</code> for every multi-replica workload that serves traffic, selecting the same labels as the Deployment.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#upgrade-resiliency/b-spread-only/0">Rolling upgrade: spread only</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="pdb-never-recovers">
+      <div class="ap-head"><h3>A PDB guarding pods that never become Ready</h3><span class="tag stall">Stalls upgrades</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>A PDB counts only Ready pods. If the replacement never passes readiness (bad image, missing secret, failing dependency), the budget never frees up, and the next eviction waits forever.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get pods -A -o json | jq -r '.items[]
+  | select(.status.phase == "Running")
+  | select(any(.status.conditions[]?; .type == "Ready" and .status == "False"))
+  | "\(.metadata.namespace)/\(.metadata.name)"'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Fix the reason the pod is not Ready before the maintenance window, not during it. Check these pods as part of the pre-upgrade checklist.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#pod-disruption-budget/stuck/0">When it never recovers</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="pdb-rollout">
+      <div class="ap-head"><h3>Expecting a PDB to protect a Deployment rollout</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>A rollout deletes its own pods; it never calls the eviction API, so a PDB does not constrain it. With the default 25% / 25% strategy, capacity and availability both dip during every deploy.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get deploy -A -o json | jq -r '.items[]
+  | select(.spec.strategy.type == "RollingUpdate")
+  | "\(.metadata.namespace)/\(.metadata.name)  surge=\(.spec.strategy.rollingUpdate.maxSurge)  unavail=\(.spec.strategy.rollingUpdate.maxUnavailable)"'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>For latency-sensitive services set <code>maxUnavailable: 0</code> and <code>maxSurge: 1</code> explicitly, so every old pod waits for a Ready replacement.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#rollout-strategy/defaults/0">The 25% default</a></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================================================================ -->
+  <section class="cat" id="probes">
+    <h2>Probes and shutdown</h2>
+    <p class="cat-dek">What a pod reports about itself decides when it gets traffic, when it is restarted, and whether requests are dropped when it stops.</p>
+
+    <article class="ap" id="no-startup-probe">
+      <div class="ap-head"><h3>A slow starter with a liveness probe and no startupProbe</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>The liveness probe starts counting before the application has finished booting, kills it, and the restart begins the same race again. The result is a CrashLoopBackOff for a pod that is healthy, just slow.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get events -A --field-selector reason=Unhealthy | grep -i liveness</div>
+<div class="code">oc get deploy -A -o json | jq -r '.items[]
+  | select(any(.spec.template.spec.containers[];
+      .livenessProbe != null and .startupProbe == null))
+  | "\(.metadata.namespace)/\(.metadata.name)"'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Add a <code>startupProbe</code> whose <code>failureThreshold × periodSeconds</code> covers the worst-case boot. Liveness only begins once it succeeds. Review the slow starters in the second list; fast-starting services don't need one.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#probes/crash-loop/0">A slow starter without startupProbe</a><a href="index.html#probes/startup-fix/0">startupProbe buys it time</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="no-prestop">
+      <div class="ap-head"><h3>No preStop delay, so in-flight requests are dropped</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>SIGTERM and endpoint removal happen at the same time. For a moment the router still sends requests to a process that is already shutting down, and those requests fail even though every drain step went by the book.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get deploy -A -o json | jq -r '.items[]
+  | select(all(.spec.template.spec.containers[]; .lifecycle.preStop == null))
+  | "\(.metadata.namespace)/\(.metadata.name)  grace=\(.spec.template.spec.terminationGracePeriodSeconds // 30)s"'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Add a short <code>preStop</code> sleep (5–10s) so endpoints drain first, handle SIGTERM by finishing in-flight work, and keep <code>terminationGracePeriodSeconds</code> above the sleep plus your longest request.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#graceful-shutdown/no-prestop/0">Without preStop</a></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================================================================ -->
+  <section class="cat" id="resources">
+    <h2>Resources and autoscaling</h2>
+    <p class="cat-dek">Requests are what the scheduler, drains and every autoscaler reason about. Wrong numbers here undermine everything else on this page.</p>
+
+    <article class="ap" id="best-effort">
+      <div class="ap-head"><h3>Pods with no requests (BestEffort)</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>The scheduler treats them as free, so nodes get overcommitted. Under memory pressure they are the first to be evicted. After a drain they fit anywhere on paper and nowhere in practice.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get pods -A -o json | jq -r '.items[]
+  | select(.status.qosClass == "BestEffort")
+  | "\(.metadata.namespace)/\(.metadata.name)"'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Set memory and CPU requests on every container. A namespace <code>LimitRange</code> with <code>defaultRequest</code> catches anything that slips through.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#requests-limits/qos-classes/0">QoS classes</a><a href="index.html#requests-limits/node-pressure/0">Node under pressure</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="template-requests">
+      <div class="ap-head"><h3>Requests copied from a template, not measured</h3><span class="tag drift">Hidden drift</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>Requests set too low overcommit nodes and skew HPA percentages; requests set too high waste capacity and block scheduling. Either way, every capacity calculation built on them is wrong.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc adm top pods -A --sort-by=memory | head -20</div>
+<div class="code"># compare with what those pods request
+oc get pods -n &lt;ns&gt; -o custom-columns=NAME:.metadata.name,REQ_MEM:.spec.containers[*].resources.requests.memory,REQ_CPU:.spec.containers[*].resources.requests.cpu</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Run a VerticalPodAutoscaler with <code>updateMode: "Off"</code> on the biggest workloads to get recommendations without restarts, then set requests from real usage.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#autoscaling/vpa/0">VPA: how much</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="hpa-vpa-same-metric">
+      <div class="ap-head"><h3>HPA and VPA driven by the same metric on the same workload</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>VPA raising a request lowers the utilization percentage HPA reads, so HPA scales in just as load arrives. The two controllers keep undoing each other, and the workload thrashes.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code"># workloads targeted by both an HPA and a VPA
+comm -12 \
+  &lt;(oc get hpa -A -o json | jq -r '.items[] | "\(.metadata.namespace)/\(.spec.scaleTargetRef.name)"' | sort) \
+  &lt;(oc get vpa -A -o json | jq -r '.items[] | "\(.metadata.namespace)/\(.spec.targetRef.name)"' | sort)</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Keep VPA at <code>updateMode: "Off"</code> or <code>"Initial"</code> on HPA-managed workloads, or scale HPA on a metric VPA does not manage (requests per second, queue depth).</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#autoscaling/conflict/0">Both, on the same metric</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="hpa-min-below-pdb">
+      <div class="ap-head"><h3>HPA minReplicas at or below the PDB floor</h3><span class="tag stall">Stalls upgrades</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>At night the HPA scales down to <code>minReplicas</code>. If that is no more than the PDB allows, the budget has no headroom and drains block. Size the drain check at <code>maxReplicas</code>, because a peak can land inside the maintenance window.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get hpa -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,MIN:.spec.minReplicas,MAX:.spec.maxReplicas
+oc get pdb -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,MIN-AVAIL:.spec.minAvailable,MAX-UNAVAIL:.spec.maxUnavailable</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Keep <code>minReplicas</code> at least one above the PDB's <code>minAvailable</code> (or use <code>maxUnavailable</code> on the PDB), and check drain capacity at <code>maxReplicas</code>.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="capacity-simulator.html">Capacity simulator: HPA &amp; PDB</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="no-drain-headroom">
+      <div class="ap-head"><h3>No headroom for a node to drain</h3><span class="tag stall">Stalls upgrades</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>When the rest of the pool cannot absorb a drained node's requests, evicted pods go Pending and the upgrade stalls halfway. On bare metal there is nowhere to surge to.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code"># requested share of allocatable memory, per node
+oc describe nodes | grep -A8 "Allocated resources" | grep -E "Name:|memory"</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Keep utilization during a roll at or below about 85% of what survives <code>maxUnavailable</code>, using allocatable (not capacity) and subtracting DaemonSet requests. The arithmetic and simulator pages do this for you.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#requests-limits/scheduling-fit/0">Fitting on a drain</a><a href="capacity-math.html">The arithmetic</a><a href="capacity-simulator.html">Simulator</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="cro-rewrite">
+      <div class="ap-head"><h3>Trusting the manifest while ClusterResourceOverride rewrites it</h3><span class="tag drift">Hidden drift</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>An admission webhook changes requests and limits before scheduling, so the running pod differs from what you applied, and its QoS class can drop from Guaranteed to Burstable without anyone editing a manifest.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get clusterresourceoverride cluster -o yaml 2&gt;/dev/null
+oc get ns -l clusterresourceoverrides.admission.autoscaling.openshift.io/enabled=true</div>
+<div class="code">oc get pod &lt;pod&gt; -n &lt;ns&gt; -o jsonpath='{.status.qosClass}{"\n"}{.spec.containers[*].resources}{"\n"}'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Know which namespaces opt in, check the running pod rather than the manifest when reasoning about QoS or capacity, and exclude namespaces that need Guaranteed QoS.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#autoscaling/cro/0">ClusterResourceOverride rewrites it</a></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================================================================ -->
+  <section class="cat" id="priority">
+    <h2>Scheduling priority</h2>
+    <p class="cat-dek">When the cluster is full, priority decides who gets the room.</p>
+
+    <article class="ap" id="no-priority">
+      <div class="ap-head"><h3>Critical workloads at default priority</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>With no PriorityClass, a critical pod displaced by a drain waits in the same Pending queue as batch jobs. Overusing high priority is also dangerous: preemption deletes pods directly and <em>bypasses</em> PodDisruptionBudgets.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get priorityclass</div>
+<div class="code"># namespaces with the most pods running at default priority
+oc get pods -A -o json | jq -r '.items[]
+  | select(.spec.priorityClassName == null) | .metadata.namespace' \
+  | sort | uniq -c | sort -rn | head</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Define a small number of PriorityClasses and reserve high values for truly critical services. Give batch work <code>preemptionPolicy: Never</code> so it waits instead of evicting others.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#priority-preemption/stuck/0">Pending, regardless of priority</a><a href="index.html#priority-preemption/bypasses-pdb/0">Preemption bypasses the eviction API</a></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================================================================ -->
+  <section class="cat" id="storage">
+    <h2>Storage</h2>
+    <p class="cat-dek">Volumes are zonal and outlive pods. That is what makes them useful, and it's also where these two anti-patterns bite.</p>
+
+    <article class="ap" id="immediate-binding">
+      <div class="ap-head"><h3>volumeBindingMode: Immediate on zonal storage</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>The volume is created before the pod is scheduled, in whatever zone the provisioner picks. If that zone has no room for the pod, or the pod's spread rules want another zone, it stays Pending, stranded beside its own data.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get storageclass -o custom-columns=NAME:.metadata.name,BINDING:.volumeBindingMode,RECLAIM:.reclaimPolicy</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Use <code>WaitForFirstConsumer</code> so the volume is created in the zone where the pod lands. The field is immutable, so create a new StorageClass and make it the default.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#pvc-pv/binding-mode/0">Immediate can strand a zone</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="reclaim-delete">
+      <div class="ap-head"><h3>reclaimPolicy: Delete on data you cannot lose</h3><span class="tag outage">Data loss</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>Deleting the claim (a removed namespace, a Helm uninstall, a mistyped command) deletes the volume and its data with it. There is no confirmation and no undo.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get pv -o custom-columns=NAME:.metadata.name,NS:.spec.claimRef.namespace,CLAIM:.spec.claimRef.name,POLICY:.spec.persistentVolumeReclaimPolicy</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Patch critical volumes to <code>Retain</code> and back them up regardless. <code>Retain</code> keeps the disk, but it is not a backup.</p>
+<div class="code" style="margin-top: 8px">oc patch pv &lt;pv&gt; -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'</div></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#pvc-pv/reclaim-delete/0">reclaimPolicy: Delete</a><a href="index.html#pvc-pv/reclaim-retain/0">reclaimPolicy: Retain</a></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================================================================ -->
+  <section class="cat" id="upgrades">
+    <h2>Upgrades</h2>
+    <p class="cat-dek">Cluster-level settings and state that decide whether an upgrade starts, how fast it moves, and whether it finishes.</p>
+
+    <article class="ap" id="mcp-maxunavailable">
+      <div class="ap-head"><h3>MachineConfigPool maxUnavailable set without the capacity math</h3><span class="tag stall">Stalls upgrades</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>Set it too high and the surviving nodes cannot hold the evicted pods. Set it to 1 on a large pool and the upgrade outlasts the maintenance window.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get mcp -o custom-columns=NAME:.metadata.name,MAX-UNAVAIL:.spec.maxUnavailable,MACHINES:.status.machineCount,PAUSED:.spec.paused</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Derive it from drain headroom (see the simulator), and split very large or special-purpose groups into custom pools that can be paused and rolled separately.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#machine-config-pools/parallel/0">maxUnavailable: 2</a><a href="index.html#machine-config-pools/custom-pools/0">Custom pools</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="degraded-co">
+      <div class="ap-head"><h3>Starting an upgrade with a degraded ClusterOperator</h3><span class="tag stall">Stalls upgrades</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>The Cluster Version Operator upgrades operators in dependency order. One Degraded operator stops the graph before a single worker drains, and it looks like a stuck upgrade when it was never healthy.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get clusteroperators -o json | jq -r '.items[]
+  | select(any(.status.conditions[]; (.type == "Degraded" and .status == "True")
+      or (.type == "Available" and .status == "False")))
+  | .metadata.name'
+oc adm upgrade</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Clear every Degraded or unavailable operator before you start, and make <code>oc get co</code> the first command in the runbook, before any node-level checks.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#cluster-upgrade-flow/degraded-blocks/0">A degraded operator blocks everything</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="nodepool-skew">
+      <div class="ap-head"><h3>ROSA HCP machine pools left versions behind</h3><span class="tag stall">Stalls upgrades</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>Machine pools upgrade independently of the hosted control plane. Leave one far enough behind and the control plane itself refuses its next upgrade until that pool catches up.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">rosa describe cluster -c &lt;cluster&gt; | grep -i version
+rosa list machinepools -c &lt;cluster&gt;   # compare each pool's version</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Upgrade machine pools soon after each control-plane upgrade, with a canary pool first if the fleet is large, so no pool drifts toward the skew limit.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#rosa-hcp-upgrade-flow/skew-limit/0">Version skew has a limit</a><a href="index.html#rosa-hcp-upgrade-flow/canary/0">Canary pool</a></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================================================================ -->
+  <section class="cat" id="nodes">
+    <h2>Node autoscaling</h2>
+    <p class="cat-dek">Node autoscalers add and remove capacity, and removing a node is a disruption like any other.</p>
+
+    <article class="ap" id="pinned-nodes">
+      <div class="ap-head"><h3>Pods that pin nodes against scale-down</h3><span class="tag drift">Wasted cost</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>A pod annotated <code>safe-to-evict: "false"</code>, a bare pod with no controller, or a PDB with no headroom keeps a nearly empty node running, and paid for, indefinitely.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get pods -A -o json | jq -r '.items[]
+  | select(.metadata.annotations["cluster-autoscaler.kubernetes.io/safe-to-evict"] == "false"
+      or .metadata.ownerReferences == null)
+  | "\(.spec.nodeName)  \(.metadata.namespace)/\(.metadata.name)"' | sort</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Remove the annotation wherever a restart is actually tolerable, run everything under a controller, and give every PDB at least one allowed disruption.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#node-autoscaling/ca-scale-down/0">Cluster autoscaler: scale down</a></div>
+      </div>
+    </article>
+
+    <article class="ap" id="unbounded-consolidation">
+      <div class="ap-head"><h3>Karpenter consolidation with no budgets</h3><span class="tag outage">Outage risk</span></div>
+      <div class="row">
+        <div class="k">Why</div>
+        <div class="v"><p>Consolidation moves pods all day to save money. Without disruption budgets or <code>do-not-disrupt</code> on sensitive pods, those restarts land in business hours on workloads that cannot tolerate them.</p></div>
+        <div class="k">Check</div>
+        <div class="v">
+<div class="code">oc get nodepools.karpenter.sh -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.disruption}{"\n"}{end}'</div>
+        </div>
+        <div class="k">Fix</div>
+        <div class="v"><p>Add <code>disruption.budgets</code>, including a scheduled <code>nodes: "0"</code> for business hours, and annotate pods that must not move with <code>karpenter.sh/do-not-disrupt: "true"</code>. PDBs still apply on top of both.</p></div>
+        <div class="k">See it</div>
+        <div class="v see"><a href="index.html#node-autoscaling/karpenter-consolidation/0">Karpenter: consolidation</a></div>
+      </div>
+    </article>
+  </section>
+
+  <p class="empty" id="empty" hidden>No anti-patterns match that filter.</p>
+
+  <footer>A summary of the patterns the animations demonstrate — not an exhaustive audit. The commands are read-only starting points, so adapt them to your cluster's labels and namespaces.<br><br>Always consult the <a href="https://kubernetes.io/docs/home/" target="_blank" rel="noopener">official Kubernetes documentation</a> (and the OpenShift and ROSA docs) to verify current features and behavior before acting on these recommendations.</footer>
+
+</div>
+
+<script>
+(function () {
+  var input = document.getElementById("filter");
+  var count = document.getElementById("count");
+  var empty = document.getElementById("empty");
+  var items = Array.prototype.slice.call(document.querySelectorAll("article.ap"));
+  var sections = Array.prototype.slice.call(document.querySelectorAll("section.cat"));
+  var text = items.map(function (a) { return (a.closest("section").querySelector("h2").textContent + " " + a.textContent).toLowerCase(); });
+
+  function apply() {
+    var terms = input.value.toLowerCase().split(/\s+/).filter(Boolean);
+    var shown = 0;
+    items.forEach(function (a, i) {
+      var hit = terms.every(function (t) { return text[i].indexOf(t) !== -1; });
+      a.hidden = !hit;
+      if (hit) shown += 1;
+    });
+    sections.forEach(function (s) { s.hidden = !s.querySelector("article.ap:not([hidden])"); });
+    count.textContent = shown + " of " + items.length;
+    empty.hidden = shown !== 0;
+  }
+  input.addEventListener("input", apply);
+  apply();
+
+  document.querySelectorAll(".code").forEach(function (block) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "copy";
+    btn.textContent = "Copy";
+    btn.addEventListener("click", function () {
+      var cmd = block.textContent;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(cmd).then(function () {
+          btn.textContent = "Copied";
+          setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+        });
+      } else {
+        var range = document.createRange();
+        range.selectNodeContents(block);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        btn.textContent = "Selected";
+      }
+    });
+    var wrap = document.createElement("div");
+    wrap.className = "code-wrap";
+    block.parentNode.insertBefore(wrap, block);
+    wrap.appendChild(block);
+    wrap.appendChild(btn);
+  });
+})();
+</script>
+</body>
+</html>

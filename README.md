@@ -95,6 +95,16 @@ Both are self-contained (their own fonts, styles, and script — no dependency
 on `js/player.js` or the registry) so they work as standalone links even
 outside this site.
 
+## Anti-patterns field guide
+
+**[antipatterns.html](antipatterns.html)** — 22 common resiliency
+anti-patterns grouped by area (placement, disruption budgets, probes,
+resources, priority, storage, upgrades, node autoscaling). Each entry covers
+why it hurts, a read-only `oc`/`jq` command that finds it, the fix, and deep
+links to the animation that shows it. A filter box narrows the list live.
+Standalone like the capacity pages; `tools/check-links.mjs` validates its
+deep links along with the docs.
+
 ---
 
 ## Demo video
